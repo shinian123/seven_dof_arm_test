@@ -76,7 +76,7 @@ class GraspNode{
   ros::Publisher stop_ork_signal_pub;
   ros::Publisher left_gripper_signal_pub;
   ros::Publisher right_gripper_signal_pub;
-  ros::Publisher navigation_goal_publisher;
+  ros::Publisher navigation_goal_publisher
   moveit::planning_interface::MoveGroup group;
   
 
