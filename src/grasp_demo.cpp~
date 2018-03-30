@@ -710,7 +710,7 @@ bool GraspNode::execute(){
       ros::spinOnce();
       sleep(2.0);
       moveit::planning_interface::MoveGroup group(arm_name);
-      group.setPlanningTime(1.0);
+      group.setPlanningTime(5.0);
       // printf("Have we grasped the object?(y/n)");
       // scanf("%s",&haveGrasp);
       std::vector<std::string> object_ids;
