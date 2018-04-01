@@ -605,12 +605,12 @@ bool GraspNode::execute(double x,double y,double z){
       pose_average.position.z=z;
       //target_pose2 = pose_average;
       target_pose2.position.x=pose_average.position.x;
-      target_pose2.position.z=pose_average.position.z+0.02;
-      target_pose2.position.y=pose_average.position.y+0.2;
-      target_pose2.orientation.x=0.991776;
-      target_pose2.orientation.y=-0.011776;
-      target_pose2.orientation.z=0.054329;
-      target_pose2.orientation.w=0.115287;
+      target_pose2.position.z=pose_average.position.z+0.205;
+      target_pose2.position.y=pose_average.position.y;
+      target_pose2.orientation.x=0;
+      target_pose2.orientation.y=-sqrt(2)/2;
+      target_pose2.orientation.z=sqrt(2)/2;
+      target_pose2.orientation.w=0;
       //leftwards:(x:0.991776 y:-0.011776 z:0.054329  w:0.115287)  downwards:(0,-sqrt(2)/2,sqrt(2)/2,0) rightwards:(0,0,0,0)
       //decide_target_pose(&target_pose2,1.002963-0.03,-0.0816710-0.03,0.391100,0,0,1,0);
 
@@ -638,12 +638,12 @@ bool GraspNode::execute(double x,double y,double z){
       }else{
         moveit::planning_interface::MoveGroup group("right_arm");
         target_pose2.position.x=pose_average.position.x;
-        target_pose2.position.z=pose_average.position.z+0.02;
-        target_pose2.position.y=pose_average.position.y+0.2;
-        target_pose2.orientation.x=0;
-        target_pose2.orientation.y=0;
-        target_pose2.orientation.z=0;
-        target_pose2.orientation.w=0;
+      	target_pose2.position.z=pose_average.position.z+0.205;
+      	target_pose2.position.y=pose_average.position.y;
+      	target_pose2.orientation.x=0;
+      	target_pose2.orientation.y=-sqrt(2)/2;
+      	target_pose2.orientation.z=sqrt(2)/2;
+      	target_pose2.orientation.w=0;
         group.setPoseTarget(target_pose2);
       ROS_INFO("Begin Planning!");
       bool success = group.plan(my_plan);
@@ -667,7 +667,7 @@ bool GraspNode::execute(double x,double y,double z){
           moveit::planning_interface::MoveGroup group("left_arm");
           target_pose2 = pose_average;
           target_pose2.position.x=pose_average.position.x;
-          target_pose2.position.z=pose_average.position.z+0.25;
+          target_pose2.position.z=pose_average.position.z+0.2;
           target_pose2.position.y=pose_average.position.y;
           target_pose2.orientation.x=0;
           target_pose2.orientation.y=-sqrt(2)/2;
@@ -780,8 +780,8 @@ bool GraspNode::execute(double x,double y,double z){
 		target_pose_temp.orientation.z=-0.442234;
 		target_pose_temp.orientation.w=0.505156;
 	}else{
-    target_pose_temp.position.x=0.117831;
-	  target_pose_temp.position.y=-0.439276;
+    		target_pose_temp.position.x=0.117831;
+	  	target_pose_temp.position.y=-0.439276;
 		target_pose_temp.position.z=0.572630;
 		target_pose_temp.orientation.x=0.480942;
 		target_pose_temp.orientation.y=0.581612;
@@ -815,8 +815,8 @@ bool GraspNode::execute(double x,double y,double z){
 		target_pose_temp.orientation.z=-0.510330;
 		target_pose_temp.orientation.w=0.511381;
 	}else{
-    target_pose_temp.position.x=0.117831;
-	  target_pose_temp.position.y=-0.439276;
+    		target_pose_temp.position.x=0.117831;
+		target_pose_temp.position.y=-0.439276;
 		target_pose_temp.position.z=0.572630;
 		target_pose_temp.orientation.x=0.480942;
 		target_pose_temp.orientation.y=0.581612;
