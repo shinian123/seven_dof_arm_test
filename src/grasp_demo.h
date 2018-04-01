@@ -26,6 +26,14 @@
 #define LEFT_ARM  true
 #define RIGHT_ARM false 
 #define pi 3.141592653
+#define AUTO_MODE 1
+#define DETECT_MODE 2
+#define NAVIGATION_MODE 3
+#define EXECUTE_MODE 4
+const char AUTO = 1;
+const char DETECT = 2;
+const char NAVIGATION = 3;
+const char EXECUTE = 4;
 
 using namespace std;
 
@@ -42,6 +50,15 @@ class Listener{
   int main(int argc, char **argv);
   Listener():listen_times(2),current_count(0),isReceived(false){};
   ~Listener(){};
+};
+class pluginListener
+{
+public:
+	int mode;
+	void plugin_callback(const std_msgs::String::ConstPtr& msg);
+	pluginListener():mode(0){};
+	~pluginListener(){};
+	
 };
 class GraspNode{
    private:
@@ -67,12 +84,15 @@ class GraspNode{
   char porg;
   char lorr;
   char haveGrasp;
+  pluginListener plis;
   Listener lis;
   std::string arm_name;
   std::string gripper_command;
   ros::NodeHandle nh,nh1;  
   ros::AsyncSpinner spinner;
   ros::Subscriber sub;
+  ros::Subscriber plugin_command_sub;
+  ros::Publisher plugin_return_pub;
   ros::Publisher stop_ork_signal_pub;
   ros::Publisher left_gripper_signal_pub;
   ros::Publisher right_gripper_signal_pub;
@@ -100,7 +120,7 @@ class GraspNode{
   void init(); 
   bool navigation();
   bool detect(double &x,double &y,double &z);
-  bool execute();
+  bool execute(double x,double y,double z);
   int  main(int argc, char **argv);
  
 };

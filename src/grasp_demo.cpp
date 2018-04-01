@@ -110,14 +110,21 @@ void Listener::CallBack(const object_recognition_msgs::RecognizedObjectArray::Co
         //printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w); 
         geometry_msgs::Pose pose_average = average_pose(pose_sample , listen_times);
        pose_ans=pose_average;
-        printf("average:\npose:\nx:%f\ty:%f\tz:%f\n", pose_ans.position.x,pose_ans.position.y,pose_ans.position.z);
-        printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",pose_ans.orientation.x,pose_ans.orientation.y,pose_ans.orientation.z,pose_ans.orientation.w);
-        ROS_INFO("STOP!!!");
+        //printf("average:\npose:\nx:%f\ty:%f\tz:%f\n", pose_ans.position.x,pose_ans.position.y,pose_ans.position.z);
+        //printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",pose_ans.orientation.x,pose_ans.orientation.y,pose_ans.orientation.z,pose_ans.orientation.w);
+        //ROS_INFO("STOP!!!");
 	isReceived = true;
         }
       }
 } 
-
+void pluginListener::plugin_callback(const std_msgs::String::ConstPtr& msg){
+     std::string rec = msg->data;
+     ROS_INFO("I heard %s!", rec.c_str());
+     if(rec=="AUTO") mode = AUTO; 
+     if(rec=="DETECT") mode = DETECT; 
+     if(rec=="NAVIGATION")  mode = NAVIGATION;
+     if(rec=="EXECUTE") mode = EXECUTE;     
+}
 void GraspNode::power()  
 {  
         FILE *fp;  
@@ -404,7 +411,7 @@ void GraspNode::init(){
   isBegin='a';
   isGrasp='b';
   porg='c';
-  lorr='d';
+  lorr='d'; 
   haveGrasp = 'e';
   std::string arm_name="";
   std::string gripper_command="a";
@@ -592,7 +599,10 @@ bool GraspNode::navigation(){
 
 }
 
-bool GraspNode::execute(){
+bool GraspNode::execute(double x,double y,double z){
+      pose_average.position.x=x;
+      pose_average.position.y=y;
+      pose_average.position.z=z;
       //target_pose2 = pose_average;
       target_pose2.position.x=pose_average.position.x;
       target_pose2.position.z=pose_average.position.z+0.02;
@@ -757,8 +767,45 @@ bool GraspNode::execute(){
   	  	else  pub_gripper(&right_gripper_signal_pub,gripper_command);
       	ros::spinOnce();
       	sleep(5.0);
-	ROS_INFO("Start receting!");
+	ROS_INFO("Start reseting!");
+	//reset pose 1
 	power();
+	sleep(1.0);
+	if(enable_arm==LEFT_ARM){
+		target_pose_temp.position.x=0.300458;
+		target_pose_temp.position.y=0.649426;
+		target_pose_temp.position.z=0.732094;
+		target_pose_temp.orientation.x=-0.485317;
+		target_pose_temp.orientation.y=-0.560102;
+		target_pose_temp.orientation.z=-0.442234;
+		target_pose_temp.orientation.w=0.505156;
+	}else{
+    target_pose_temp.position.x=0.117831;
+	  target_pose_temp.position.y=-0.439276;
+		target_pose_temp.position.z=0.572630;
+		target_pose_temp.orientation.x=0.480942;
+		target_pose_temp.orientation.y=0.581612;
+		target_pose_temp.orientation.z=0.532653;
+		target_pose_temp.orientation.w=-0.383104;  
+        }
+	group.setPoseTarget(target_pose_temp);
+      	bool huiex_success = group.plan(my_plan);
+      	if(huiex_success){ 
+      		bool huiex_exc=group.execute(my_plan);
+      		if(!huiex_exc)
+      		{
+      			power();
+			sleep(0.5);
+      			group.setStartState(*group.getCurrentState());
+      			group.setPoseTarget(target_pose_temp);
+      			group.plan(my_plan);
+      			group.execute(my_plan);
+      		}
+      	}
+
+	//reset pose terminal
+	power();
+	sleep(1.0);
 	if(enable_arm==LEFT_ARM){
 		target_pose_temp.position.x=0.152698;
 		target_pose_temp.position.y=0.452910;
@@ -768,8 +815,8 @@ bool GraspNode::execute(){
 		target_pose_temp.orientation.z=-0.510330;
 		target_pose_temp.orientation.w=0.511381;
 	}else{
-                target_pose_temp.position.x=0.117831;
-	        target_pose_temp.position.y=-0.439276;
+    target_pose_temp.position.x=0.117831;
+	  target_pose_temp.position.y=-0.439276;
 		target_pose_temp.position.z=0.572630;
 		target_pose_temp.orientation.x=0.480942;
 		target_pose_temp.orientation.y=0.581612;
@@ -783,6 +830,7 @@ bool GraspNode::execute(){
       		if(!hui_exc)
       		{
       			power();
+			sleep(0.5);
       			group.setStartState(*group.getCurrentState());
       			group.setPoseTarget(target_pose_temp);
       			group.plan(my_plan);
@@ -796,7 +844,7 @@ bool GraspNode::execute(){
     object_ids.push_back("box2");
     planning_scene_interface.removeCollisionObjects(object_ids);
       isReceived = false;
-      ros::shutdown();
+     // ros::shutdown();
       return true;
 
 }
@@ -804,8 +852,15 @@ bool GraspNode::execute(){
 int main(int argc, char **argv){
 
   double x,y,z;
+  int state=1;
+  bool detect_success,navigation_success,execute_success;
   ros::init(argc, argv, "grasp_demo");
-
+  ros::NodeHandle nh;
+  pluginListener plis;
+  std_msgs::String msg;
+  stringstream ss;
+  ros::Publisher plugin_return_pub = nh.advertise<std_msgs::String>("plugin_return",1000);
+  ros::Subscriber plugin_command_sub = nh.subscribe("plugin_command",1000,&pluginListener::plugin_callback,&plis);
   if(!ros::ok())
   {
     ROS_INFO("ros::ok failed!");
@@ -813,30 +868,93 @@ int main(int argc, char **argv){
   }
   GraspNode graspnode;
   graspnode.init();
+  ROS_INFO("Init succeed!");
+  /*ss<<"Init succeed!";
+  msg.data = ss.str();
+  plugin_return_pub.publish(msg);
+  ros::spinOnce();*/
   while(ros::ok()){
-    if(graspnode.detect(x,y,z)){
-      ROS_INFO("First step of detection succeed!");
-      if(graspnode.navigation()){
-	   ROS_INFO("Navigation succeed!");	
-	   if(graspnode.detect(x,y,z)){
-	      ROS_INFO("Second step of detection succeed!");
-	      bool success=graspnode.execute();
-	      if(success){
-		ROS_INFO("Excecution succeed!");
-		ros::shutdown();
+    sleep(1.0);   
+    
+    //printf("Current state: %d\n",state);
+    switch(plis.mode){
+      case 1:
+        state = 0;
+        if(graspnode.detect(x,y,z)){
+            ROS_INFO("First step of detection succeed!");
+          if(graspnode.navigation()){
+    	      ROS_INFO("Navigation succeed!");	
+    	      if(graspnode.detect(x,y,z)){
+    	      ROS_INFO("Second step of detection succeed!");
+    	      bool success = graspnode.execute(x,y,z);
+    	      if(success){
+    		      ROS_INFO("Excecution succeed!");
+    		    }
+    	      else
+    		      continue;
+    	   }
+    	   else
+    	     ROS_INFO("Second step of detection failed!");
+           }
+           else
+    	     ROS_INFO("Navigation failed!");
+        }
+        else 
+        {
+          ROS_INFO("First step of detection failed!"); 
+          sleep(5.0);
+        }
+        break;
+      case 2:
+	if(state==1){
+		state = 2;
+		detect_success = graspnode.detect(x,y,z);
+		if(detect_success){
+		  ss<<"Detect succeed!";
+		}else{
+		  ss<<"Detect failed!";
 		}
-	      else
-		continue;
-	   }
-	   else
-	     ROS_INFO("Second step of detection failed!");
-       }
-       else
-	 ROS_INFO("Navigation failed!");
+		msg.data = ss.str();
+		plugin_return_pub.publish(msg);
+		ROS_INFO("Detect plugin return has been published!");
+		plis.mode = 0;
+		ros::spinOnce();
+		state = 2;
+	}
+        break;
+      case 3:
+        if(state==2){
+          navigation_success = graspnode.navigation();
+          if(navigation_success) ss << "Navigation succeed!";
+          else ss << "Navigation failed!";
+          msg.data = ss.str();
+          plugin_return_pub.publish(msg);
+          ROS_INFO("Navigation plugin return has been published!");
+          ros::spinOnce();
+          state = 1;
+ 	  plis.mode = 0;
+        }else{
+          ROS_INFO("Haven't deteccted objects yet!");
+        }
+        break;
+      case 4:
+        if(state == 2){
+          state = 1;
+          execute_success = graspnode.execute(x,y,z);
+          if(execute_success) ss << "Execute succeed!";
+          else ss << "Execute failed!";
+          msg.data = ss.str();
+          plugin_return_pub.publish(msg);
+          ROS_INFO("Execute plugin return has been published!");
+          ros::spinOnce();
+	  plis.mode = 0;
+        }else{
+          ROS_INFO("Haven't detected objects yet!");
+        }
+        break;
+      default:
+        ;
     }
-    else 
-      ROS_INFO("First step of detection failed!"); 
-   sleep(5.0);
   }
   return 0;
 }

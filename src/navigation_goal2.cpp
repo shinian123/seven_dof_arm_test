@@ -62,71 +62,68 @@ int main(int argc, char **argv)
 #include "ros/ros.h"
 #include "object_recognition_msgs/RecognizedObjectArray.h"
 #include "geometry_msgs/Point.h"
-#include "geometry_msgs/Twist.h"
-#include "sensor_msgs/LaserScan.h"
-#include "nav_msgs/GetPlan.h"
 #include <tf/transform_listener.h>
 #include <iostream>
 #include <geometry_msgs/PoseStamped.h>
-#include <string>
-#include <cmath>
 const double pi=3.141592653;
 
-std::string laser_topic = "scan";
 
-ros::Publisher pub;
-
-bool hit = false;
-
-float min_tolerant_range = 0.1;
-float move_step = 0.1;
-float sleep_interval = 0.4;
-void CallBack_laserscan(const sensor_msgs::LaserScan &msg)
+bool isGetPose = false;
+geometry_msgs::Pose pose_average;
+std::string fixed_frame = "/base_link";
+std::string robot_link = "/base_link", map_link = "/map";
+ros::Publisher navigation_goal_publisher;
+ros::Subscriber position_sub;
+double target_x, target_y;
+void CallBack(const geometry_msgs::Pose::ConstPtr& msg)
 {
-   float minrange = 1e10, maxrange = -1e10;
-   int i = 0;
-   for(float t = msg.angle_min ; t < msg.angle_max ; t += msg.angle_increment)
-   {
-     if(msg.range_min < msg.ranges[i] && msg.ranges[i] < msg.range_max)
-     {
-        if(msg.ranges[i] < minrange)
-            minrange = msg.ranges[i];
-        if(msg.ranges[i] > maxrange)
-            maxrange = msg.ranges[i];
-     }
-     i++;
-   }
-   //ROS_INFO("%d %f %f %f %f", hit?1:0, msg.range_min, msg.range_max, minrange, maxrange);
-   if(minrange < min_tolerant_range)
-     hit = true;
-}
-
-void move_Foward()
-{
-    geometry_msgs::Twist m;
-    m.linear.x = move_step;
-    pub.publish(m);
-    ROS_INFO("MOVE_FORWARD");
+    pose_average = *msg;
+    target_x = pose_average.position.x-0.8;
+    target_y = pose_average.position.y;
+    ROS_INFO("I have received the pose! %lf %lf", target_x, target_y);    
+    isGetPose = true;
 }
 
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "navigation_goal_node");
   ros::NodeHandle nh;
+  navigation_goal_publisher = nh.advertise <geometry_msgs::PoseStamped>("/move_base_simple/goal", 1, true);
+  position_sub = nh.subscribe("object_position_signal", 1000, CallBack);
+  tf::TransformListener tf_listener;
 
-  ros::Subscriber laser_sub = nh.subscribe("scan", 1000, CallBack_laserscan);
-  pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
-  if(ros::ok())
-    ros::spinOnce();
   while(ros::ok())
   {
-    if(!hit)
-    {
-        move_Foward();
-    }
-    ros::spinOnce();
-    sleep(sleep_interval);
-  }
+  	ROS_INFO("Enter_loop %d", isGetPose?1:0);
+  	if(isGetPose)
+  	{
+   		tf::Quaternion quat;
+	    quat.setRPY(0.0, 0.0, 90.0);
+	    tf::Stamped<tf::Pose> p = tf::Stamped<tf::Pose>(tf::Pose(quat, tf::Point(target_x, target_y, 0.0)), ros::Time::now(), robot_link);
+	    tf::Stamped<tf::Pose> p_map;
+	    while(1)
+	    {
+	      try{
+	       tf_listener.transformPose(map_link, p, p_map);
+	     }catch(tf2::ExtrapolationException &e)
+	     {
+	       std::cout<<"ERROR_1"<<std::endl;
+	       sleep(0.2);
+	       continue;
+	     }
+	     break;
+	    }
+	     geometry_msgs::PoseStamped goal;
+	     tf::poseStampedTFToMsg(p_map, goal);
+	     //ROS_INFO("Transform pose! %lf %lf", p_map.position.x, p_map.position.y);
+	     ROS_INFO("Setting goal: Frame:%s, Position(%.3f, %.3f, %.3f), Orientation(%.3f, %.3f, %.3f, %.3f) = Angle: %.3f\n", fixed_frame.c_str(),
+	              goal.pose.position.x, goal.pose.position.y, goal.pose.position.z,
+	              goal.pose.orientation.x, goal.pose.orientation.y, goal.pose.orientation.z, goal.pose.orientation.w, 90.0);
+	    navigation_goal_publisher.publish(goal);
 
+  		isGetPose = false;
+  	}
+  	ros::spinOnce();
+  }
   return 0;
 }
