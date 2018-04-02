@@ -34,7 +34,8 @@ const char AUTO = 1;
 const char DETECT = 2;
 const char NAVIGATION = 3;
 const char EXECUTE = 4;
-
+const char PLAN = 6;
+const char RESET = 5;
 using namespace std;
 
 class Listener{
@@ -120,7 +121,9 @@ class GraspNode{
   void init(); 
   bool navigation();
   bool detect(double &x,double &y,double &z);
+  bool plan(double x,double y,double z);
   bool execute(double x,double y,double z);
+  bool reset();
   int  main(int argc, char **argv);
  
 };
