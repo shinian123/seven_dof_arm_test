@@ -127,6 +127,25 @@ void pluginListener::plugin_callback(const std_msgs::String::ConstPtr& msg){
      if(rec=="PLAN") mode = PLAN;
      if(rec=="RESET") mode = RESET;    
 }
+
+void laserListener::CallBack_laserscan(const sensor_msgs::LaserScan &msg){
+   float minrange = 1e10, maxrange = -1e10;
+   int i = 0;
+   for(float t = msg.angle_min ; t < msg.angle_max ; t += msg.angle_increment)
+   {
+     if(msg.range_min < msg.ranges[i] && msg.ranges[i] < msg.range_max)
+     {
+        if(msg.ranges[i] < minrange)
+            minrange = msg.ranges[i];
+        if(msg.ranges[i] > maxrange)
+            maxrange = msg.ranges[i];
+     }
+     i++;
+   }
+   //ROS_INFO("%d %f %f %f %f", hit?1:0, msg.range_min, msg.range_max, minrange, maxrange);
+   if(minrange < min_tolerant_range)
+     hit = true;
+}
 void GraspNode::power()  
 {  
         FILE *fp;  
@@ -424,6 +443,10 @@ void GraspNode::init(){
   right_gripper_signal_pub = nh.advertise<std_msgs::String>("right_gripper_signal", 1000);
   display_publisher = nh.advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
   navigation_goal_publisher = nh.advertise <geometry_msgs::PoseStamped>("/move_base_simple/goal", 1, true);
+
+  laser_sub = nh.subscribe("scan", 1000, &laserListener::CallBack_laserscan,&laserlis);
+  navigation_pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
+
   sub=nh.subscribe("recognized_object_array", 1000, &Listener::CallBack,&lis);
   pose_init_zero(&pose_average);
   power();
@@ -447,7 +470,6 @@ void GraspNode::init(){
     
 }
 bool GraspNode::detect(double &x,double &y,double &z){
-    printf("1\n");
     while(!lis.isReceived);
     if(lis.isReceived){
     pose_average = lis.pose_ans;
@@ -546,6 +568,7 @@ bool GraspNode::detect(double &x,double &y,double &z){
 
       // Now when we plan a trajectory it will avoid the obstacle
       group.setStartState(*group.getCurrentState());
+      lis.isReceived = false;
       return true;
     }else
       return false; 
@@ -553,7 +576,7 @@ bool GraspNode::detect(double &x,double &y,double &z){
 
 bool GraspNode::navigation(){
 
-  std::string fixed_frame = "/base_link";
+  /*std::string fixed_frame = "/base_link";
   std::string robot_link = "/base_link", map_link = "/map";
   tf::TransformListener tf_listener;
   sleep(1.5);
@@ -573,7 +596,7 @@ bool GraspNode::navigation(){
       transform2 = transform1 * transform2;
       /*target_pose1.position=pose_init.position;
       target_pose1.orientation=pose_init.orientation;*/
-      geometry_msgs::Pose target_pose1;
+     /* geometry_msgs::Pose target_pose1;
       target_pose1.position.x = transform2.getOrigin().getX();
       target_pose1.position.y = transform2.getOrigin().getY();
       target_pose1.position.z = transform2.getOrigin().getZ();
@@ -593,10 +616,28 @@ bool GraspNode::navigation(){
       /*ROS_INFO("Setting goal: Frame:%s, Position(%.3f, %.3f, %.3f), Orientation(%.3f, %.3f, %.3f, %.3f) = Angle: %.3f\n", fixed_frame.c_str(),
           goal.pose.position.x, goal.pose.position.y, goal.pose.position.z,
           goal.pose.orientation.x, goal.pose.orientation.y, goal.pose.orientation.z, goal.pose.orientation.w, 90);
-      */navigation_goal_publisher.publish(goal);
-      sleep(2.0);
+      *///navigation_goal_publisher.publish(goal);
+      /*sleep(2.0);
       ros::spinOnce();
-      sleep(10.0);
+      sleep(10.0);*/
+  while(ros::ok())
+  {
+    if(!laserlis.hit)
+    {
+        geometry_msgs::Twist m;
+    	m.linear.x = move_step;
+    	navigation_pub.publish(m);
+    	ROS_INFO("MOVE_FORWARD");
+    }else {
+      break;
+    }
+    ros::spinOnce();
+    sleep(sleep_interval);
+    
+  }
+  
+  laserlis.hit = false;
+ 
   return true;
 
 }
@@ -606,7 +647,7 @@ bool GraspNode::plan(double x,double y,double z){
       pose_average.position.z=z;
       //target_pose2 = pose_average;
       target_pose2.position.x=pose_average.position.x;
-      target_pose2.position.z=pose_average.position.z+0.22;
+      target_pose2.position.z=pose_average.position.z+0.25;
       target_pose2.position.y=pose_average.position.y;
       target_pose2.orientation.x=0;
       target_pose2.orientation.y=-sqrt(2)/2;
@@ -635,7 +676,7 @@ bool GraspNode::plan(double x,double y,double z){
       }else{
         moveit::planning_interface::MoveGroup group("right_arm");
         target_pose2.position.x=pose_average.position.x;
-      	target_pose2.position.z=pose_average.position.z+0.22;
+      	target_pose2.position.z=pose_average.position.z+0.25;
       	target_pose2.position.y=pose_average.position.y;
       	target_pose2.orientation.x=0;
       	target_pose2.orientation.y=-sqrt(2)/2;
@@ -692,7 +733,7 @@ bool GraspNode::execute(double x,double y,double z){
       pose_average.position.z=z;
       //target_pose2 = pose_average;
       target_pose2.position.x=pose_average.position.x;
-      target_pose2.position.z=pose_average.position.z+0.205;
+      target_pose2.position.z=pose_average.position.z+0.23;
       target_pose2.position.y=pose_average.position.y;
       target_pose2.orientation.x=0;
       target_pose2.orientation.y=-sqrt(2)/2;
@@ -725,7 +766,7 @@ bool GraspNode::execute(double x,double y,double z){
       }else{
         moveit::planning_interface::MoveGroup group("right_arm");
         target_pose2.position.x=pose_average.position.x;
-      	target_pose2.position.z=pose_average.position.z+0.205;
+      	target_pose2.position.z=pose_average.position.z+0.23;
       	target_pose2.position.y=pose_average.position.y;
       	target_pose2.orientation.x=0;
       	target_pose2.orientation.y=-sqrt(2)/2;
@@ -1005,7 +1046,6 @@ int main(int argc, char **argv){
         break;
       case DETECT:
 	if(state==1){
-		state = 2;
 		detect_success = graspnode.detect(x,y,z);
 		if(detect_success){
 		  ss<<"Detect succeed!";
@@ -1021,7 +1061,7 @@ int main(int argc, char **argv){
 	}
         break;
       case NAVIGATION:
-        if(state==2){
+        if(true){
           navigation_success = graspnode.navigation();
           if(navigation_success) ss << "Navigation succeed!";
           else ss << "Navigation failed!";

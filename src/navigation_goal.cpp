@@ -78,9 +78,12 @@ ros::Publisher pub;
 
 bool hit = false;
 
-float min_tolerant_range = 0.1;
-float move_step = 0.1;
+float min_tolerant_range = 0.3;
+float move_step = 0.3;
+float min_move_step = min_tolerant_range * 0.5;
 float sleep_interval = 0.4;
+float move_step_prop = 0.3;
+
 void CallBack_laserscan(const sensor_msgs::LaserScan &msg)
 {
    float minrange = 1e10, maxrange = -1e10;
@@ -98,7 +101,13 @@ void CallBack_laserscan(const sensor_msgs::LaserScan &msg)
    }
    //ROS_INFO("%d %f %f %f %f", hit?1:0, msg.range_min, msg.range_max, minrange, maxrange);
    if(minrange < min_tolerant_range)
-     hit = true;
+       hit = true;
+   else
+   {
+　　　 move_step = (minrange - min_tolerant_range) * move_step_prop;
+       if(move_step < min_move_step)
+           move_step = min_move_step;
+   }
 }
 
 void move_Foward()
@@ -116,17 +125,16 @@ int main(int argc, char **argv)
 
   ros::Subscriber laser_sub = nh.subscribe("scan", 1000, CallBack_laserscan);
   pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
-  if(ros::ok())
-    ros::spinOnce();
   while(ros::ok())
   {
+    ros::spinOnce();
+    sleep(sleep_interval);
     if(!hit)
     {
         move_Foward();
     }
-    ros::spinOnce();
-    sleep(sleep_interval);
   }
 
   return 0;
 }
+

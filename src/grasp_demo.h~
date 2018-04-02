@@ -19,6 +19,8 @@
 #include <vector>
 #include <nodelet/nodelet.h>
 #include <iostream>
+#include "sensor_msgs/LaserScan.h"
+#include "nav_msgs/GetPlan.h"
 #include <geometry_msgs/PoseStamped.h>
 
 
@@ -34,8 +36,13 @@ const char AUTO = 1;
 const char DETECT = 2;
 const char NAVIGATION = 3;
 const char EXECUTE = 4;
-const char PLAN = 5;
-const char RESET = 6;
+const char PLAN = 6;
+const char RESET = 5;
+
+const std::string laser_topic = "scan";
+const float min_tolerant_range = 0.1f;
+const float move_step = 0.1f;
+const float sleep_interval = 0.4f;
 using namespace std;
 
 class Listener{
@@ -48,7 +55,6 @@ class Listener{
   void CallBack(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg); 
   geometry_msgs::Pose average_pose(vector<geometry_msgs::Pose> pose1, int count);
   geometry_msgs::Pose add_pose(geometry_msgs::Pose pose1,geometry_msgs::Pose pose2);
-  int main(int argc, char **argv);
   Listener():listen_times(2),current_count(0),isReceived(false){};
   ~Listener(){};
 };
@@ -60,6 +66,15 @@ public:
 	pluginListener():mode(0){};
 	~pluginListener(){};
 	
+};
+class laserListener
+{
+public:
+    bool hit;
+    void CallBack_laserscan(const sensor_msgs::LaserScan &msg);
+    laserListener():hit(false){};
+    ~laserListener(){}
+    
 };
 class GraspNode{
    private:
@@ -94,6 +109,8 @@ class GraspNode{
   ros::Subscriber sub;
   ros::Subscriber plugin_command_sub;
   ros::Publisher plugin_return_pub;
+  ros::Subscriber laser_sub;
+  ros::Publisher navigation_pub;
   ros::Publisher stop_ork_signal_pub;
   ros::Publisher left_gripper_signal_pub;
   ros::Publisher right_gripper_signal_pub;
