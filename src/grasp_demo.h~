@@ -40,9 +40,10 @@ const char PLAN = 6;
 const char RESET = 5;
 
 const std::string laser_topic = "scan";
-const float min_tolerant_range = 0.1f;
-const float move_step = 0.1f;
-const float sleep_interval = 0.4f;
+const float MIN_TOLERANT_RANGE = 0.3f;
+const float MOVE_STEP_PROP = 0.3f;
+const float MIN_MOVE_STEP = MIN_TOLERANT_RANGE * 0.2;
+const float SLEEP_INTERVAL = 0.3f;
 using namespace std;
 
 class Listener{
@@ -71,8 +72,13 @@ class laserListener
 {
 public:
     bool hit;
+    ros::Publisher navigation_pub;
+    float move_step;
     void CallBack_laserscan(const sensor_msgs::LaserScan &msg);
-    laserListener():hit(false){};
+    laserListener():hit(false), move_step(0.0f){}
+    laserListener(ros::NodeHandle &nh):hit(false), move_step(0.0f){
+       navigation_pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
+    }
     ~laserListener(){}
     
 };
@@ -101,6 +107,7 @@ class GraspNode{
   char lorr;
   char haveGrasp;
   pluginListener plis;
+  laserListener laserlis;
   Listener lis;
   std::string arm_name;
   std::string gripper_command;
@@ -116,7 +123,7 @@ class GraspNode{
   ros::Publisher right_gripper_signal_pub;
   ros::Publisher navigation_goal_publisher;
   moveit::planning_interface::MoveGroup group;
-  
+ 
 
 	// We will use the :planning_scene_interface:`PlanningSceneInterface
 	// class to deal directly with the world.

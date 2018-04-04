@@ -79,10 +79,13 @@ ros::Publisher pub;
 bool hit = false;
 
 float min_tolerant_range = 0.3;
-float move_step = 0.3;
+float move_step = 0;
 float min_move_step = min_tolerant_range * 0.5;
+//float max_move_step = 5.0;
 float sleep_interval = 0.4;
-float move_step_prop = 0.3;
+float move_step_prop = 0.6;
+
+void move_Foward();
 
 void CallBack_laserscan(const sensor_msgs::LaserScan &msg)
 {
@@ -104,9 +107,10 @@ void CallBack_laserscan(const sensor_msgs::LaserScan &msg)
        hit = true;
    else
    {
-　　　 move_step = (minrange - min_tolerant_range) * move_step_prop;
+       move_step = (minrange - min_tolerant_range) * move_step_prop;
        if(move_step < min_move_step)
            move_step = min_move_step;
+       move_Foward();
    }
 }
 
@@ -123,18 +127,20 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "navigation_goal_node");
   ros::NodeHandle nh;
 
-  ros::Subscriber laser_sub = nh.subscribe("scan", 1000, CallBack_laserscan);
-  pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
+  ros::Subscriber laser_sub = nh.subscribe("scan", 1, CallBack_laserscan);
+  pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
   while(ros::ok())
   {
     ros::spinOnce();
-    sleep(sleep_interval);
+    //sleep(sleep_interval);
     if(!hit)
     {
-        move_Foward();
+        //move_Foward();
     }
+    else
+        break;
   }
-
+  ROS_INFO("Navigation Finished!");
   return 0;
 }
 

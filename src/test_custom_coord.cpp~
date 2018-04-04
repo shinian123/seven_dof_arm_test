@@ -93,7 +93,7 @@ int main(int argc, char **argv)
 
 
   /* This sleep is ONLY to allow Rviz to come up */
-  sleep(20.0);
+  sleep(2.0);
   
   // BEGIN_TUTORIAL
   // 
@@ -103,7 +103,7 @@ int main(int argc, char **argv)
   // The :move_group_interface:`MoveGroup` class can be easily 
   // setup using just the name
   // of the group you would like to control and plan for.
-  moveit::planning_interface::MoveGroup group("left_arm");
+  moveit::planning_interface::MoveGroup group("right_arm");
 
   // We will use the :planning_scene_interface:`PlanningSceneInterface`
   // class to deal directly with the world.
@@ -127,21 +127,31 @@ int main(int argc, char **argv)
   // We can plan a motion for this group to a desired pose for the 
   // end-effector.
   
-  group.setPoseTarget(target_pose1);
+  tf::StampedTransform transform2;
+  tf::TransformListener listener;
+  try {
+            listener.waitForTransform("/base_link","/right_gripper_palm", ros::Time(0), ros::Duration(10.0));
+            listener.lookupTransform( "/base_link","right_gripper_palm", ros::Time(0), transform2);
+        } catch (tf::TransformException ex) {
+            ROS_ERROR("%s",ex.what());
+        }
+  
+   target_pose1.position.x = transform2.getOrigin().getX();
+target_pose1.position.y = transform2.getOrigin().getY();
+target_pose1.position.z = transform2.getOrigin().getZ();
+target_pose1.orientation.x = transform2.getRotation().getX();
+target_pose1.orientation.y = transform2.getRotation().getY();
+target_pose1.orientation.z = transform2.getRotation().getZ();
+target_pose1.orientation.w = transform2.getRotation().getW();
 
+printf("pose:\nx:%f\ty:%f\tz:%f\n",target_pose1.position.x,target_pose1.position.y,target_pose1.position.z);
+printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w);
 
-  // Now, we call the planner to compute the plan
-  // and visualize it.
-  // Note that we are just planning, not asking move_group 
-  // to actually move the robot.
-  moveit::planning_interface::MoveGroup::Plan my_plan;
-  bool success = group.plan(my_plan);
-
-  ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"":"FAILED");    
-  /* Sleep to give Rviz time to visualize the plan. */
-  sleep(5.0);
-// END_TUTORIAL
-
+std::vector<double>group_variable_values;
+group.getCurrentState()->copyJointGroupPositions(group.getCurrentState()->getRobotModel()->getJointModelGroup(group.getName()),group_variable_values);
+for(int i=0;i<group_variable_values.size();i++){
+	printf("value[%d]=%lf\n",i,group_variable_values[i]);
+}
   ros::shutdown();  
   return 0;
 }

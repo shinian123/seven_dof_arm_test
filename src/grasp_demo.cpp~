@@ -129,6 +129,9 @@ void pluginListener::plugin_callback(const std_msgs::String::ConstPtr& msg){
 }
 
 void laserListener::CallBack_laserscan(const sensor_msgs::LaserScan &msg){
+   if(hit)
+      return ;
+   ROS_INFO("LASERSCAN_RUN");
    float minrange = 1e10, maxrange = -1e10;
    int i = 0;
    for(float t = msg.angle_min ; t < msg.angle_max ; t += msg.angle_increment)
@@ -143,8 +146,18 @@ void laserListener::CallBack_laserscan(const sensor_msgs::LaserScan &msg){
      i++;
    }
    //ROS_INFO("%d %f %f %f %f", hit?1:0, msg.range_min, msg.range_max, minrange, maxrange);
-   if(minrange < min_tolerant_range)
+   if(minrange < MIN_TOLERANT_RANGE)
      hit = true;
+   else if(!hit)
+   {
+     move_step = (minrange - MIN_TOLERANT_RANGE) * MOVE_STEP_PROP;
+     if(move_step < MIN_MOVE_STEP)
+        move_step = MIN_MOVE_STEP;
+     geometry_msgs::Twist m;
+     m.linear.x = move_step;
+     navigation_pub.publish(m);
+   }
+
 }
 void GraspNode::power()  
 {  
@@ -443,9 +456,9 @@ void GraspNode::init(){
   right_gripper_signal_pub = nh.advertise<std_msgs::String>("right_gripper_signal", 1000);
   display_publisher = nh.advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
   navigation_goal_publisher = nh.advertise <geometry_msgs::PoseStamped>("/move_base_simple/goal", 1, true);
+  laserlis.navigation_pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
 
   laser_sub = nh.subscribe("scan", 1000, &laserListener::CallBack_laserscan,&laserlis);
-  navigation_pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
 
   sub=nh.subscribe("recognized_object_array", 1000, &Listener::CallBack,&lis);
   pose_init_zero(&pose_average);
@@ -620,22 +633,17 @@ bool GraspNode::navigation(){
       /*sleep(2.0);
       ros::spinOnce();
       sleep(10.0);*/
+  laserlis.hit = false;
+  ROS_INFO("Navigation Started!");
   while(ros::ok())
   {
-    if(!laserlis.hit)
-    {
-        geometry_msgs::Twist m;
-    	m.linear.x = move_step;
-    	navigation_pub.publish(m);
-    	ROS_INFO("MOVE_FORWARD");
-    }else {
+    if(laserlis.hit)
       break;
-    }
     ros::spinOnce();
-    sleep(sleep_interval);
+    sleep(SLEEP_INTERVAL);
     
   }
-  
+  ROS_INFO("Navigation Finished!");
   laserlis.hit = false;
  
   return true;
@@ -647,7 +655,7 @@ bool GraspNode::plan(double x,double y,double z){
       pose_average.position.z=z;
       //target_pose2 = pose_average;
       target_pose2.position.x=pose_average.position.x;
-      target_pose2.position.z=pose_average.position.z+0.22;
+      target_pose2.position.z=pose_average.position.z+0.25;
       target_pose2.position.y=pose_average.position.y;
       target_pose2.orientation.x=0;
       target_pose2.orientation.y=-sqrt(2)/2;
@@ -676,7 +684,7 @@ bool GraspNode::plan(double x,double y,double z){
       }else{
         moveit::planning_interface::MoveGroup group("right_arm");
         target_pose2.position.x=pose_average.position.x;
-      	target_pose2.position.z=pose_average.position.z+0.22;
+      	target_pose2.position.z=pose_average.position.z+0.25;
       	target_pose2.position.y=pose_average.position.y;
       	target_pose2.orientation.x=0;
       	target_pose2.orientation.y=-sqrt(2)/2;
@@ -733,7 +741,7 @@ bool GraspNode::execute(double x,double y,double z){
       pose_average.position.z=z;
       //target_pose2 = pose_average;
       target_pose2.position.x=pose_average.position.x;
-      target_pose2.position.z=pose_average.position.z+0.205;
+      target_pose2.position.z=pose_average.position.z+0.23;
       target_pose2.position.y=pose_average.position.y;
       target_pose2.orientation.x=0;
       target_pose2.orientation.y=-sqrt(2)/2;
@@ -766,7 +774,7 @@ bool GraspNode::execute(double x,double y,double z){
       }else{
         moveit::planning_interface::MoveGroup group("right_arm");
         target_pose2.position.x=pose_average.position.x;
-      	target_pose2.position.z=pose_average.position.z+0.205;
+      	target_pose2.position.z=pose_average.position.z+0.23;
       	target_pose2.position.y=pose_average.position.y;
       	target_pose2.orientation.x=0;
       	target_pose2.orientation.y=-sqrt(2)/2;
@@ -866,13 +874,13 @@ bool GraspNode::execute(double x,double y,double z){
 		target_pose_temp.orientation.z=0.593748;
 		target_pose_temp.orientation.w=-0.312589;
         }else{
-        	target_pose_temp.position.x=0.567017;
-		target_pose_temp.position.y=-0.435451;
-		target_pose_temp.position.z=1.055147;
-		target_pose_temp.orientation.x=0.098212;
-		target_pose_temp.orientation.y=-0.127870;
-		target_pose_temp.orientation.z=-0.730341;
-		target_pose_temp.orientation.w=0.663781;
+        	target_pose_temp.position.x=0.566997;
+		target_pose_temp.position.y=-0.435485;
+		target_pose_temp.position.z=1.055114;
+		target_pose_temp.orientation.x=0.342295;
+		target_pose_temp.orientation.y=0.593277;
+		target_pose_temp.orientation.z=0.654907;
+		target_pose_temp.orientation.w=-0.319300;
         }
 		//group.setRandomTarget();
 		ROS_INFO("Start picking!");
@@ -911,14 +919,13 @@ bool GraspNode::execute(double x,double y,double z){
 		group_variable_values.push_back(-1.5708);
 		group.setJointValueTarget(group_variable_values);
 	}else{
-    		target_pose_temp.position.x=0.117831;
-		target_pose_temp.position.y=-0.439276;
-		target_pose_temp.position.z=0.572630;
-		target_pose_temp.orientation.x=0.480942;
-		target_pose_temp.orientation.y=0.581612;
-		target_pose_temp.orientation.z=0.532653;
-		target_pose_temp.orientation.w=-0.383104; 
-		group.setPoseTarget(target_pose_temp); 
+    		group_variable_values.push_back(-0.187947);
+		group_variable_values.push_back(0.070866);
+		group_variable_values.push_back(-2.824250);
+		group_variable_values.push_back(-0.176628);
+		group_variable_values.push_back(1.912136);
+		group_variable_values.push_back(1.465337);
+		group.setJointValueTarget(group_variable_values);
         }
 	
       	bool hui_success = group.plan(my_plan);
@@ -961,14 +968,13 @@ bool GraspNode::reset(){
 		group_variable_values.push_back(-1.5708);
 		group.setJointValueTarget(group_variable_values);
 	}else{
-    		target_pose_temp.position.x=0.117831;
-		target_pose_temp.position.y=-0.439276;
-		target_pose_temp.position.z=0.572630;
-		target_pose_temp.orientation.x=0.480942;
-		target_pose_temp.orientation.y=0.581612;
-		target_pose_temp.orientation.z=0.532653;
-		target_pose_temp.orientation.w=-0.383104; 
-		group.setPoseTarget(target_pose_temp); 
+    		group_variable_values.push_back(-0.187947);
+		group_variable_values.push_back(0.070866);
+		group_variable_values.push_back(-2.824250);
+		group_variable_values.push_back(-0.176628);
+		group_variable_values.push_back(1.912136);
+		group_variable_values.push_back(1.465337);
+		group.setJointValueTarget(group_variable_values);
         }
 	
       	bool hui_success = group.plan(my_plan);
@@ -997,6 +1003,7 @@ int main(int argc, char **argv){
   std_msgs::String msg;
   stringstream ss;
   ros::Publisher plugin_return_pub = nh.advertise<std_msgs::String>("plugin_return",1000);
+  ros::Publisher start_ork_pub = nh.advertise<std_msgs::String>("plugin_return",1000);
   ros::Subscriber plugin_command_sub = nh.subscribe("plugin_command",1000,&pluginListener::plugin_callback,&plis);
   if(!ros::ok())
   {
@@ -1016,6 +1023,7 @@ int main(int argc, char **argv){
     sleep(1.0);   
     
     //printf("Current state: %d\n",state);
+    //std::cout<< plis.mode << std::endl;//ROS_INFO(plis.mode);
     switch(plis.mode){
       case AUTO:
         state = 0;
@@ -1046,7 +1054,6 @@ int main(int argc, char **argv){
         break;
       case DETECT:
 	if(state==1){
-		state = 2;
 		detect_success = graspnode.detect(x,y,z);
 		if(detect_success){
 		  ss<<"Detect succeed!";
@@ -1062,7 +1069,8 @@ int main(int argc, char **argv){
 	}
         break;
       case NAVIGATION:
-        if(state==2){
+        if(true){
+          //ROS_INFO("navigation 1");
           navigation_success = graspnode.navigation();
           if(navigation_success) ss << "Navigation succeed!";
           else ss << "Navigation failed!";

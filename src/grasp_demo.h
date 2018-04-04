@@ -40,9 +40,10 @@ const char PLAN = 6;
 const char RESET = 5;
 
 const std::string laser_topic = "scan";
-const float min_tolerant_range = 0.3f;
-const float move_step = 0.5f;
-const float sleep_interval = 0.4f;
+const float MIN_TOLERANT_RANGE = 0.3f;
+const float MOVE_STEP_PROP = 0.3f;
+const float MIN_MOVE_STEP = MIN_TOLERANT_RANGE * 0.2;
+const float SLEEP_INTERVAL = 0.3f;
 using namespace std;
 
 class Listener{
@@ -71,8 +72,13 @@ class laserListener
 {
 public:
     bool hit;
+    ros::Publisher navigation_pub;
+    float move_step;
     void CallBack_laserscan(const sensor_msgs::LaserScan &msg);
-    laserListener():hit(false){};
+    laserListener():hit(true), move_step(0.0f){}
+    laserListener(ros::NodeHandle &nh):hit(true), move_step(0.0f){
+       navigation_pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
+    }
     ~laserListener(){}
     
 };
@@ -112,6 +118,7 @@ class GraspNode{
   ros::Publisher plugin_return_pub;
   ros::Subscriber laser_sub;
   ros::Publisher navigation_pub;
+  ros::Publisher start_ork_pub;
   ros::Publisher stop_ork_signal_pub;
   ros::Publisher left_gripper_signal_pub;
   ros::Publisher right_gripper_signal_pub;
