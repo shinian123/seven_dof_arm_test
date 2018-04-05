@@ -452,6 +452,7 @@ void GraspNode::init(){
   spinner.start();
   
   stop_ork_signal_pub = nh.advertise<std_msgs::String>("stop_ork_signal",1000);
+  start_ork_pub = nh.advertise<std_msgs::String>("start_ork_signal",1000);
   left_gripper_signal_pub = nh.advertise<std_msgs::String>("left_gripper_signal", 1000);
   right_gripper_signal_pub = nh.advertise<std_msgs::String>("right_gripper_signal", 1000);
   display_publisher = nh.advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
@@ -483,6 +484,11 @@ void GraspNode::init(){
     
 }
 bool GraspNode::detect(double &x,double &y,double &z){
+    std_msgs::String msg;
+    std::stringstream ss;
+    ss<<"Start object recognition";
+    msg.data=ss.str();
+    start_ork_pub.publish(msg);
     while(!lis.isReceived);
     if(lis.isReceived){
     pose_average = lis.pose_ans;
@@ -490,8 +496,8 @@ bool GraspNode::detect(double &x,double &y,double &z){
     y=pose_average.position.y;
     z=pose_average.position.z;
     target_pose2 = lis.pose_ans;
-    std_msgs::String msg;
-    std::stringstream ss;
+    ss.str("");
+    ss.clear();
     ss << "Pause object recognition";
     msg.data = ss.str();
     stop_ork_signal_pub.publish(msg);
@@ -1003,7 +1009,7 @@ int main(int argc, char **argv){
   std_msgs::String msg;
   stringstream ss;
   ros::Publisher plugin_return_pub = nh.advertise<std_msgs::String>("plugin_return",1000);
-  ros::Publisher start_ork_pub = nh.advertise<std_msgs::String>("plugin_return",1000);
+  ros::Publisher start_ork_pub = nh.advertise<std_msgs::String>("start_ork_signal",1000);
   ros::Subscriber plugin_command_sub = nh.subscribe("plugin_command",1000,&pluginListener::plugin_callback,&plis);
   if(!ros::ok())
   {
@@ -1027,8 +1033,7 @@ int main(int argc, char **argv){
     switch(plis.mode){
       case AUTO:
         state = 0;
-        if(graspnode.detect(x,y,z)){
-            ROS_INFO("First step of detection succeed!");
+        
           if(graspnode.navigation()){
     	      ROS_INFO("Navigation succeed!");	
     	      if(graspnode.detect(x,y,z)){
@@ -1045,11 +1050,6 @@ int main(int argc, char **argv){
            }
            else
     	     ROS_INFO("Navigation failed!");
-        }
-        else 
-        {
-          ROS_INFO("First step of detection failed!"); 
-          sleep(5.0);
         }
         break;
       case DETECT:

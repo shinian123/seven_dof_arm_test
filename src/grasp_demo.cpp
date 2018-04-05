@@ -486,7 +486,7 @@ void GraspNode::init(){
 bool GraspNode::detect(double &x,double &y,double &z){
     std_msgs::String msg;
     std::stringstream ss;
-    ss<<"Start object recognition"
+    ss<<"Start object recognition";
     msg.data=ss.str();
     start_ork_pub.publish(msg);
     while(!lis.isReceived);
@@ -1033,8 +1033,7 @@ int main(int argc, char **argv){
     switch(plis.mode){
       case AUTO:
         state = 0;
-        if(graspnode.detect(x,y,z)){
-            ROS_INFO("First step of detection succeed!");
+        
           if(graspnode.navigation()){
     	      ROS_INFO("Navigation succeed!");	
     	      if(graspnode.detect(x,y,z)){
@@ -1051,18 +1050,13 @@ int main(int argc, char **argv){
            }
            else
     	     ROS_INFO("Navigation failed!");
-        }
-        else 
-        {
-          ROS_INFO("First step of detection failed!"); 
-          sleep(5.0);
-        }
         break;
       case DETECT:
 	if(state==1){
 		detect_success = graspnode.detect(x,y,z);
 		if(detect_success){
 		  ss<<"Detect succeed!";
+		  state = 2;
 		}else{
 		  ss<<"Detect failed!";
 		}
@@ -1071,7 +1065,7 @@ int main(int argc, char **argv){
 		ROS_INFO("Detect plugin return has been published!");
 		plis.mode = 0;
 		ros::spinOnce();
-		state = 2;
+		//state = 2;
 	}
         break;
       case NAVIGATION:
