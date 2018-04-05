@@ -34,10 +34,16 @@
 #define EXECUTE_MODE 4
 const char AUTO = 1;
 const char DETECT = 2;
-const char NAVIGATION = 3;
-const char EXECUTE = 4;
-const char PLAN = 6;
-const char RESET = 5;
+const char NAVIGATION1 = 3;
+const char ARRIVEPLAN = 4;
+const char ARRIVEEXECUTE = 5;
+const char PICKPLAN = 6;
+const char PICKEXECUTE = 7;
+const char PLACEPLAN = 8;
+const char PLACEEXECUTE = 9;
+const char NAVIGATION2 = 10;
+const char RESET = 11;
+const char POWER = 12;
 
 const std::string laser_topic = "scan";
 const float MIN_TOLERANT_RANGE = 0.3f;
@@ -75,8 +81,8 @@ public:
     ros::Publisher navigation_pub;
     float move_step;
     void CallBack_laserscan(const sensor_msgs::LaserScan &msg);
-    laserListener():hit(false), move_step(0.0f){}
-    laserListener(ros::NodeHandle &nh):hit(false), move_step(0.0f){
+    laserListener():hit(true), move_step(0.0f){}
+    laserListener(ros::NodeHandle &nh):hit(true), move_step(0.0f){
        navigation_pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
     }
     ~laserListener(){}
@@ -118,6 +124,7 @@ class GraspNode{
   ros::Publisher plugin_return_pub;
   ros::Subscriber laser_sub;
   ros::Publisher navigation_pub;
+  ros::Publisher start_ork_pub;
   ros::Publisher stop_ork_signal_pub;
   ros::Publisher left_gripper_signal_pub;
   ros::Publisher right_gripper_signal_pub;
@@ -145,7 +152,10 @@ class GraspNode{
   void init(); 
   bool navigation();
   bool detect(double &x,double &y,double &z);
-  bool plan(double x,double y,double z);
+  bool arrive_plan(double x,double y,double z,bool &arm,moveit::planning_interface::MoveGroup::Plan &plan);
+  bool arrive_execute(bool arm,moveit::planning_interface::MoveGroup::Plan plan);
+  bool pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &plan);
+  bool pick_execute(bool arm,moveit::planning_interface::MoveGroup::Plan plan);
   bool execute(double x,double y,double z);
   bool reset();
   int  main(int argc, char **argv);

@@ -34,10 +34,16 @@
 #define EXECUTE_MODE 4
 const char AUTO = 1;
 const char DETECT = 2;
-const char NAVIGATION = 3;
-const char EXECUTE = 4;
-const char PLAN = 6;
-const char RESET = 5;
+const char NAVIGATION1 = 3;
+const char ARRIVEPLAN = 4;
+const char ARRIVEEXECUTE = 5;
+const char PICKPLAN = 6;
+const char PICKEXECUTE = 7;
+const char PLACEPLAN = 8;
+const char PLACEEXECUTE = 9;
+const char NAVIGATION2 = 10;
+const char RESET = 11;
+const char POWER = 12;
 
 const std::string laser_topic = "scan";
 const float MIN_TOLERANT_RANGE = 0.3f;
@@ -93,7 +99,7 @@ class GraspNode{
 	bool enable_arm;//true---left   false----right
 	void decide_target_pose(geometry_msgs::Pose *target_pose,double pose_x,double pose_y,double pose_z,double orientation_x,double orientation_y,double orientation_z,double orientation_w);
 	geometry_msgs::Pose add_pose(geometry_msgs::Pose pose1,geometry_msgs::Pose pose2);
-	void power(); 
+	
 	void pose_init_zero(geometry_msgs::Pose *pose); 
 	void decide_orientation(geometry_msgs::Pose *target_pose2,geometry_msgs::Pose pose_average);
 	geometry_msgs::Pose average_pose(vector<geometry_msgs::Pose> pose1, int count);
@@ -142,11 +148,14 @@ class GraspNode{
   GraspNode(const ros::NodeHandle &nh = ros::NodeHandle(), const ros::NodeHandle &nh1 = ros::NodeHandle("~")):
     current_count(0),listen_times(2),isReceived(false),enable_arm(true),nh(nh),nh1(nh1),gripper_command("a"),spinner(1),group("left_arm")
     {}
-
+  void power(); 
   void init(); 
   bool navigation();
   bool detect(double &x,double &y,double &z);
-  bool plan(double x,double y,double z);
+  bool arrive_plan(double x,double y,double z,bool &arm,moveit::planning_interface::MoveGroup::Plan &plan);
+  bool arrive_execute(bool arm,moveit::planning_interface::MoveGroup::Plan plan);
+  bool pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &plan);
+  bool pick_execute(bool arm,moveit::planning_interface::MoveGroup::Plan plan);
   bool execute(double x,double y,double z);
   bool reset();
   int  main(int argc, char **argv);
