@@ -1107,19 +1107,30 @@ bool GraspNode::reset(){
 		group_variable_values.push_back(-1.612);
 		group_variable_values.push_back(-1.5708);
 		group.setJointValueTarget(group_variable_values);
+		bool hui_success = group.plan(my_plan);
+      	      if(hui_success){ 
+      		bool hui_exc=group.execute(my_plan);
+      		if(!hui_exc)
+      		{
+      			power();
+			      sleep(0.5);
+			      group.setStartState(*group.getCurrentState());
+      			group.setJointValueTarget(group_variable_values);
+      			group.plan(my_plan);
+      			group.execute(my_plan);
+      		}
+      	     }
 	}else{
-    moveit::planning_interface::MoveGroup group("right_arm");
-    group.setStartState(*group.getCurrentState());
-    group_variable_values.push_back(-0.187947);
+		    moveit::planning_interface::MoveGroup group("right_arm");
+		    group.setStartState(*group.getCurrentState());
+		    group_variable_values.push_back(-0.187947);
 		group_variable_values.push_back(0.070866);
 		group_variable_values.push_back(-2.824250);
 		group_variable_values.push_back(-0.176628);
 		group_variable_values.push_back(1.912136);
 		group_variable_values.push_back(1.465337);
 		group.setJointValueTarget(group_variable_values);
-        }
-	
-      	bool hui_success = group.plan(my_plan);
+		bool hui_success = group.plan(my_plan);
       	if(hui_success){ 
       		bool hui_exc=group.execute(my_plan);
       		if(!hui_exc)
@@ -1132,6 +1143,13 @@ bool GraspNode::reset(){
       			group.execute(my_plan);
       		}
       	}
+        }
+std::vector<std::string> object_ids;
+	object_ids.push_back("box1");
+    object_ids.push_back("box2");
+    planning_scene_interface.removeCollisionObjects(object_ids);
+      isReceived = false;
+      	
 	return true;
 }
 int main(int argc, char **argv){
