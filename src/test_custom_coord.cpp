@@ -130,8 +130,8 @@ int main(int argc, char **argv)
   tf::StampedTransform transform2;
   tf::TransformListener listener;
   try {
-            listener.waitForTransform("/base_link","/right_gripper_palm", ros::Time(0), ros::Duration(10.0));
-            listener.lookupTransform( "/base_link","right_gripper_palm", ros::Time(0), transform2);
+            listener.waitForTransform("/base_link","/left_gripper_palm", ros::Time(0), ros::Duration(10.0));
+            listener.lookupTransform( "/base_link","/left_gripper_palm", ros::Time(0), transform2);
         } catch (tf::TransformException ex) {
             ROS_ERROR("%s",ex.what());
         }

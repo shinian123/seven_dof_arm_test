@@ -52,16 +52,16 @@ geometry_msgs::Pose Listener::add_pose(geometry_msgs::Pose pose1,geometry_msgs::
 geometry_msgs::Pose Listener::average_pose(vector<geometry_msgs::Pose> pose1, int count){
 
   geometry_msgs::Pose pose_add,pose_ans;
-  for(int i=0;i<count;i++){
+  for(int i=1;i<count;i++){
     pose_add=add_pose(pose_add,pose1[i]);
   }
-  pose_ans.position.x = pose_add.position.x / count;
-  pose_ans.position.y = pose_add.position.y / count;
-  pose_ans.position.z = pose_add.position.z / count;
-  pose_ans.orientation.x = pose_ans.orientation.x / count;
-  pose_ans.orientation.y = pose_ans.orientation.y / count;
-  pose_ans.orientation.z = pose_ans.orientation.z / count;
-  pose_ans.orientation.w = pose_ans.orientation.w / count;
+  pose_ans.position.x = pose_add.position.x / (count-1);
+  pose_ans.position.y = pose_add.position.y / (count-1);
+  pose_ans.position.z = pose_add.position.z / (count-1);
+  pose_ans.orientation.x = pose_ans.orientation.x / (count-1);
+  pose_ans.orientation.y = pose_ans.orientation.y / (count-1);
+  pose_ans.orientation.z = pose_ans.orientation.z / (count-1);
+  pose_ans.orientation.w = pose_ans.orientation.w / (count-1);
 
   return pose_ans;
 }
@@ -98,8 +98,8 @@ void Listener::CallBack(const object_recognition_msgs::RecognizedObjectArray::Co
       target_pose1.orientation.w = transform2.getRotation().getW();
 
 
-      //printf("sample %d:\npose:\nx:%f\ty:%f\tz:%f\n",current_count, target_pose1.position.x,target_pose1.position.y,target_pose1.position.z);
-      //printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w);
+     printf("sample %d:\npose:\nx:%f\ty:%f\tz:%f\n",current_count, target_pose1.position.x,target_pose1.position.y,target_pose1.position.z);
+     printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w);
 
       pose_sample.push_back(target_pose1);
 
@@ -108,10 +108,10 @@ void Listener::CallBack(const object_recognition_msgs::RecognizedObjectArray::Co
 	
         //printf("pose:\nx:%f\ty:%f\tz:%f\n",target_pose1.position.x,target_pose1.position.y,target_pose1.position.z);
         //printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w); 
-        geometry_msgs::Pose pose_average = average_pose(pose_sample , listen_times);
-       pose_ans=pose_average;
-        //printf("average:\npose:\nx:%f\ty:%f\tz:%f\n", pose_ans.position.x,pose_ans.position.y,pose_ans.position.z);
-        //printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",pose_ans.orientation.x,pose_ans.orientation.y,pose_ans.orientation.z,pose_ans.orientation.w);
+        pose_ans = average_pose(pose_sample , listen_times);
+        //pose_sample.clear();
+        printf("average:\npose:\nx:%f\ty:%f\tz:%f\n", pose_ans.position.x,pose_ans.position.y,pose_ans.position.z);
+        printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",pose_ans.orientation.x,pose_ans.orientation.y,pose_ans.orientation.z,pose_ans.orientation.w);
         //ROS_INFO("STOP!!!");
 	isReceived = true;
         }
@@ -151,7 +151,7 @@ void laserListener::CallBack_laserscan(const sensor_msgs::LaserScan &msg){
      }
      i++;
    }
-   //ROS_INFO("%d %f %f %f %f", hit?1:0, msg.range_min, msg.range_max, minrange, maxrange);
+   ROS_INFO("%d %f", hit?1:0, minrange);
    if(minrange < MIN_TOLERANT_RANGE)
      hit = true;
    else if(!hit)
@@ -461,15 +461,15 @@ void GraspNode::init(){
   start_ork_pub = nh.advertise<std_msgs::String>("start_ork_signal",1000);
   left_gripper_signal_pub = nh.advertise<std_msgs::String>("left_gripper_signal", 1000);
   right_gripper_signal_pub = nh.advertise<std_msgs::String>("right_gripper_signal", 1000);
-  display_publisher = nh.advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
+  display_publisher = nh.advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 100, true);
   navigation_goal_publisher = nh.advertise <geometry_msgs::PoseStamped>("/move_base_simple/goal", 1, true);
-  laserlis.navigation_pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
+  laserlis.navigation_pub = nh.advertise<geometry_msgs::Twist>("/bulldog_velocity_controller/cmd_vel", 100);
 
   laser_sub = nh.subscribe("scan", 1000, &laserListener::CallBack_laserscan,&laserlis);
 
-  sub=nh.subscribe("recognized_object_array", 1000, &Listener::CallBack,&lis);
+  
   pose_init_zero(&pose_average);
-  power();
+  //power();
   /*This sleep is ONLY to allow Rviz to come up */
   sleep(2.0);
   // BEGIN_TUTORIAL
@@ -490,6 +490,8 @@ void GraspNode::init(){
     
 }
 bool GraspNode::detect(double &x,double &y,double &z){
+    Listener lis;
+    sub=nh.subscribe("recognized_object_array", 1000, &Listener::CallBack,&lis);
     std_msgs::String msg;
     std::stringstream ss;
     ss<<"Start object recognition";
@@ -587,7 +589,7 @@ bool GraspNode::detect(double &x,double &y,double &z){
       // vector, we tell the planning scene to add our new box
       planning_scene_interface.addCollisionObjects(collision_objects);
       ROS_INFO("Add collision objects into the world");
-      sleep(5.0);
+      sleep(2.0);
       group.setPlanningTime(1.0);
 
 
@@ -693,12 +695,12 @@ bool GraspNode::arrive_plan(double x,double y,double z,bool &arm,moveit::plannin
 
       ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
       if(success){
-          enable_arm = LEFT_ARM;
-          arm = LEFT_ARM;
+          enable_arm = RIGHT_ARM;
+          arm = RIGHT_ARM;
           plan = my_plan;
 	  return true;
       }else{
-        moveit::planning_interface::MoveGroup group("right_arm");
+        moveit::planning_interface::MoveGroup group("left_arm");
         group.setStartState(*group.getCurrentState());
         target_pose2.position.x=pose_average.position.x;
       	target_pose2.position.z=pose_average.position.z+0.25;
@@ -713,8 +715,8 @@ bool GraspNode::arrive_plan(double x,double y,double z,bool &arm,moveit::plannin
 
       ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
         if(success){
-          enable_arm = RIGHT_ARM;
-          arm = RIGHT_ARM;
+          enable_arm = LEFT_ARM;
+          arm = LEFT_ARM;
           plan = my_plan;
 	  return true;        
          }else{
@@ -796,7 +798,7 @@ bool GraspNode::execute(double x,double y,double z){
       pose_average.position.z=z;
       //target_pose2 = pose_average;
       target_pose2.position.x=pose_average.position.x;
-      target_pose2.position.z=pose_average.position.z+0.23;
+      target_pose2.position.z=pose_average.position.z+0.25;
       target_pose2.position.y=pose_average.position.y;
       target_pose2.orientation.x=0;
       target_pose2.orientation.y=-sqrt(2)/2;
@@ -820,16 +822,16 @@ bool GraspNode::execute(double x,double y,double z){
 
       ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
       if(success){
-          enable_arm = LEFT_ARM;
+          enable_arm = RIGHT_ARM;
           bool ex = group.execute(my_plan);
           if(!ex) {
             power();
             //continue;
           }
       }else{
-        moveit::planning_interface::MoveGroup group("right_arm");
+        moveit::planning_interface::MoveGroup group("left_arm");
         target_pose2.position.x=pose_average.position.x;
-      	target_pose2.position.z=pose_average.position.z+0.23;
+      	target_pose2.position.z=pose_average.position.z+0.25;
       	target_pose2.position.y=pose_average.position.y;
       	target_pose2.orientation.x=0;
       	target_pose2.orientation.y=-sqrt(2)/2;
@@ -848,7 +850,7 @@ bool GraspNode::execute(double x,double y,double z){
          //      break; 
          //    else ourplan(&group,target_pose2,&my_plan); 
           // } 
-          enable_arm = RIGHT_ARM;
+          enable_arm = LEFT_ARM;
           bool ex=group.execute(my_plan);
           if(!ex) {
               power();
@@ -918,36 +920,57 @@ bool GraspNode::execute(double x,double y,double z){
     object_ids.push_back("cylinder");
     planning_scene_interface.removeCollisionObjects(object_ids);
     group.setStartState(*group.getCurrentState());
-    power();
+    //power();
     sleep(1.0);
+    vector<double> group_variable_values;
     if(enable_arm==LEFT_ARM){
-		target_pose_temp.position.x=0.864536;
+		/*target_pose_temp.position.x=0.864536;
 		target_pose_temp.position.y=0.367802;
 		target_pose_temp.position.z=0.945851;
 		target_pose_temp.orientation.x=0.251804;
 		target_pose_temp.orientation.y=0.697385;
 		target_pose_temp.orientation.z=0.593748;
-		target_pose_temp.orientation.w=-0.312589;
+		target_pose_temp.orientation.w=-0.312589;*/
+		group.setStartState(*group.getCurrentState());
+		group_variable_values.push_back(2.999290);
+		group_variable_values.push_back(-2.236700);
+		group_variable_values.push_back(-0.559131);
+		group_variable_values.push_back(-2.830370);
+		group_variable_values.push_back(-1.319326);
+		group_variable_values.push_back(-1.608036);
+	      ROS_INFO("Start planning picking!");
+	     // group.setPoseTarget(target_pose_temp);
+		group.setJointValueTarget(group_variable_values);
         }else{
-        	target_pose_temp.position.x=0.566997;
+        	/*target_pose_temp.position.x=0.566997;
 		target_pose_temp.position.y=-0.435485;
 		target_pose_temp.position.z=1.055114;
 		target_pose_temp.orientation.x=0.342295;
 		target_pose_temp.orientation.y=0.593277;
 		target_pose_temp.orientation.z=0.654907;
-		target_pose_temp.orientation.w=-0.319300;
+		target_pose_temp.orientation.w=-0.319300;*/
+		group.setStartState(*group.getCurrentState());
+		  group_variable_values.push_back(-2.815427);
+		  group_variable_values.push_back(-1.499180);
+		  group_variable_values.push_back(0.997918);
+		  group_variable_values.push_back(0.024248);
+		  group_variable_values.push_back(1.522912);
+		  group_variable_values.push_back(-1.612360);
+		  ROS_INFO("Start planning picking!");
+		  group.setJointValueTarget(group_variable_values);
         }
 		//group.setRandomTarget();
 		ROS_INFO("Start picking!");
-      	group.setPoseTarget(target_pose_temp);
+      	//group.setPoseTarget(target_pose_temp);
       	bool pick_success = group.plan(my_plan);
+	 
       	if(pick_success){ 
       		bool pick_exc=group.execute(my_plan);
       		if(!pick_exc)
       		{
       			power();
       			group.setStartState(*group.getCurrentState());
-      			group.setPoseTarget(target_pose_temp);
+      			group.setJointValueTarget(group_variable_values);
       			group.plan(my_plan);
       			group.execute(my_plan);
       		}
@@ -960,10 +983,10 @@ bool GraspNode::execute(double x,double y,double z){
       	sleep(5.0);
 	ROS_INFO("Start reseting!");
 	//reset pose 
-	power();
+	//power();
 	sleep(1.0);
 	group.setStartState(*group.getCurrentState());
-	vector<double> group_variable_values;
+	
 	if(enable_arm==LEFT_ARM){
 		
 		group_variable_values.push_back(0.1412);
@@ -973,6 +996,20 @@ bool GraspNode::execute(double x,double y,double z){
 		group_variable_values.push_back(-1.612);
 		group_variable_values.push_back(-1.5708);
 		group.setJointValueTarget(group_variable_values);
+			bool hui_success = group.plan(my_plan);
+		ROS_INFO("Visualizing plan 1 (pose goal) %s",hui_success?"SUCCEED":"FAILED");
+	      	if(hui_success){ 
+	      		bool hui_exc=group.execute(my_plan);
+	      		if(!hui_exc)
+	      		{
+	      			power();
+				sleep(0.5);
+				group.setStartState(*group.getCurrentState());
+	      			group.setJointValueTarget(group_variable_values);
+	      			group.plan(my_plan);
+	      			group.execute(my_plan);
+	      		}
+	      	}
 	}else{
     		group_variable_values.push_back(-0.187947);
 		group_variable_values.push_back(0.070866);
@@ -981,28 +1018,30 @@ bool GraspNode::execute(double x,double y,double z){
 		group_variable_values.push_back(1.912136);
 		group_variable_values.push_back(1.465337);
 		group.setJointValueTarget(group_variable_values);
+			bool hui_success = group.plan(my_plan);
+		ROS_INFO("Visualizing plan 1 (pose goal) %s",hui_success?"SUCCEED":"FAILED");
+	      	if(hui_success){ 
+	      		bool hui_exc=group.execute(my_plan);
+	      		if(!hui_exc)
+	      		{
+	      			power();
+				sleep(0.5);
+				group.setStartState(*group.getCurrentState());
+	      			group.setJointValueTarget(group_variable_values);
+	      			group.plan(my_plan);
+	      			group.execute(my_plan);
+	      		}
+	      	}
         }
 	
-      	bool hui_success = group.plan(my_plan);
-      	if(hui_success){ 
-      		bool hui_exc=group.execute(my_plan);
-      		if(!hui_exc)
-      		{
-      			power();
-			sleep(0.5);
-			group.setStartState(*group.getCurrentState());
-      			group.setJointValueTarget(group_variable_values);
-      			group.plan(my_plan);
-      			group.execute(my_plan);
-      		}
-      	}
+      
       // printf("Have we place the object?(y/n)");
      //  scanf("%s",&haveGrasp);
       
     object_ids.push_back("box1");
     object_ids.push_back("box2");
     planning_scene_interface.removeCollisionObjects(object_ids);
-      isReceived = false;
+     // isReceived = false;
      // ros::shutdown();
       return true;
 }
@@ -1019,15 +1058,24 @@ bool GraspNode::pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &
     
     if(arm==LEFT_ARM){
       moveit::planning_interface::MoveGroup group("left_arm");
-      target_pose_temp.position.x=0.864536;
-      target_pose_temp.position.y=0.367802;
-      target_pose_temp.position.z=0.945851;
-      target_pose_temp.orientation.x=0.251804;
-      target_pose_temp.orientation.y=0.697385;
-      target_pose_temp.orientation.z=0.593748;
-      target_pose_temp.orientation.w=-0.312589;
+	 group.setStartState(*group.getCurrentState());
+      //target_pose_temp.position.x=0.864536;
+      //target_pose_temp.position.y=0.367802;
+      //target_pose_temp.position.z=0.945851;
+      //target_pose_temp.orientation.x=0.251804;
+      //target_pose_temp.orientation.y=0.697385;
+      //target_pose_temp.orientation.z=0.593748;
+      //target_pose_temp.orientation.w=-0.312589;
+	vector<double> group_variable_values;
+	group_variable_values.push_back(2.999290);
+	group_variable_values.push_back(-2.236700);
+	group_variable_values.push_back(-0.559131);
+	group_variable_values.push_back(-2.830370);
+	group_variable_values.push_back(-1.319326);
+	group_variable_values.push_back(-1.608036);
       ROS_INFO("Start planning picking!");
-      group.setPoseTarget(target_pose_temp);
+     // group.setPoseTarget(target_pose_temp);
+	group.setJointValueTarget(group_variable_values);
       bool pick_success = group.plan(my_plan);
       if(pick_success){
         plan =my_plan;
@@ -1037,15 +1085,24 @@ bool GraspNode::pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &
         }
      }else{
           moveit::planning_interface::MoveGroup group("right_arm");
-          target_pose_temp.position.x=0.566997;
-          target_pose_temp.position.y=-0.435485;
-          target_pose_temp.position.z=1.055114;
-          target_pose_temp.orientation.x=0.342295;
-          target_pose_temp.orientation.y=0.593277;
-          target_pose_temp.orientation.z=0.654907;
-          target_pose_temp.orientation.w=-0.319300;
+          //target_pose_temp.position.x=0.566997;
+          //target_pose_temp.position.y=-0.435485;
+          //target_pose_temp.position.z=1.055114;
+          //target_pose_temp.orientation.x=0.342295;
+          //target_pose_temp.orientation.y=0.593277;
+          //target_pose_temp.orientation.z=0.654907;
+          //target_pose_temp.orientation.w=-0.319300;
+	  vector<double> group_variable_values;
+	  group.setStartState(*group.getCurrentState());
+	  group_variable_values.push_back(-2.815427);
+	  group_variable_values.push_back(-1.499180);
+	  group_variable_values.push_back(0.997918);
+	  group_variable_values.push_back(0.024248);
+	  group_variable_values.push_back(1.522912);
+	  group_variable_values.push_back(-1.612360);
           ROS_INFO("Start planning picking!");
-          group.setPoseTarget(target_pose_temp);
+	  group.setJointValueTarget(group_variable_values);
+          //group.setPoseTarget(target_pose_temp);
           bool pick_success = group.plan(my_plan);
           if(pick_success){
             plan =my_plan;
@@ -1059,7 +1116,7 @@ bool GraspNode::pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &
    
 }
 bool GraspNode::pick_execute(bool arm,moveit::planning_interface::MoveGroup::Plan plan){
-    power();
+    //power();
     sleep(1.0);
     if(arm==LEFT_ARM){
       moveit::planning_interface::MoveGroup group("left_arm");
@@ -1093,7 +1150,7 @@ bool GraspNode::pick_execute(bool arm,moveit::planning_interface::MoveGroup::Pla
 bool GraspNode::reset(){
     ROS_INFO("Start reseting!");
 	//reset pose 
-	power();
+	//power();
 	sleep(1.0);
 	
 	vector<double> group_variable_values;
@@ -1148,8 +1205,8 @@ std::vector<std::string> object_ids;
 	object_ids.push_back("box1");
     object_ids.push_back("box2");
     planning_scene_interface.removeCollisionObjects(object_ids);
-      isReceived = false;
-      	
+      //lis.isReceived = false;
+     // lis.pose_sample.clear();
 	return true;
 }
 int main(int argc, char **argv){
@@ -1157,6 +1214,7 @@ int main(int argc, char **argv){
   double x,y,z;
   int state=1;
   bool arm = LEFT_ARM;
+  char ch;
   bool detect_success,navigation_success,execute_success,plan_success,reset_success;
   moveit::planning_interface::MoveGroup::Plan plan;
   ros::init(argc, argv, "grasp_demo");
@@ -1180,17 +1238,18 @@ int main(int argc, char **argv){
   plugin_return_pub.publish(msg);
   ros::spinOnce();*/
   while(ros::ok()){
+    //graspnode.lis.isReceived = false;
     ss.clear();
     ss.str("");
     sleep(1.0);   
     
-    //printf("Current state: %d\n",state);
+    printf("Current state: %d\n",state);
     //std::cout<< plis.mode << std::endl;//ROS_INFO(plis.mode);
     switch(plis.mode){
       case AUTO:
         state = 0;
-        if(graspnode.detect(x,y,z)){
-            ROS_INFO("First step of detection succeed!");
+       // if(graspnode.detect(x,y,z)){
+       //     ROS_INFO("First step of detection succeed!");
           if(graspnode.navigation()){
     	      ROS_INFO("Navigation succeed!");	
     	      if(graspnode.detect(x,y,z)){
@@ -1207,19 +1266,19 @@ int main(int argc, char **argv){
            }
            else
     	     ROS_INFO("Navigation failed!");
-        }
-        else 
-        {
-          ROS_INFO("First step of detection failed!"); 
-          sleep(5.0);
-        }
+        //}
+        //else 
+        //{
+         // ROS_INFO("First step of detection failed!"); 
+        //  sleep(5.0);
+        //}
         break;
       case DETECT:
       	if(state==1){
       		detect_success = graspnode.detect(x,y,z);
       		if(detect_success){
       		  ss<<"Detect succeed!";
-            state = 2;
+                  state = 2;
       		}else{
       		  ss<<"Detect failed!";
       		}
@@ -1324,6 +1383,10 @@ int main(int argc, char **argv){
           ROS_INFO("Reset plugin return has been published!");
           ros::spinOnce();
 	  plis.mode = 0;
+	  //printf("Exit?(y/n)\n");
+	  //  ch =getchar();
+	  //  if(ch=='y'||ch=='Y') {return 0;}
+	  //  else{;}
         break;
    case POWER:
 	sleep(1.0);
@@ -1337,6 +1400,7 @@ int main(int argc, char **argv){
       default:
         ;
     }
+    
   }
   return 0;
 }

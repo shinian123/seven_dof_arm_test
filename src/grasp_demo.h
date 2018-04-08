@@ -46,8 +46,8 @@ const char RESET = 11;
 const char POWER = 12;
 
 const std::string laser_topic = "scan";
-const float MIN_TOLERANT_RANGE = 0.3f;
-const float MOVE_STEP_PROP = 0.3f;
+const float MIN_TOLERANT_RANGE = 0.2f;
+const float MOVE_STEP_PROP = 0.5f;
 const float MIN_MOVE_STEP = MIN_TOLERANT_RANGE * 0.2;
 const float SLEEP_INTERVAL = 0.3f;
 using namespace std;
@@ -62,7 +62,7 @@ class Listener{
   void CallBack(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg); 
   geometry_msgs::Pose average_pose(vector<geometry_msgs::Pose> pose1, int count);
   geometry_msgs::Pose add_pose(geometry_msgs::Pose pose1,geometry_msgs::Pose pose2);
-  Listener():listen_times(2),current_count(0),isReceived(false){};
+  Listener():listen_times(3),current_count(0),isReceived(false){};
   ~Listener(){};
 };
 class pluginListener
@@ -114,7 +114,7 @@ class GraspNode{
   char haveGrasp;
   pluginListener plis;
   laserListener laserlis;
-  Listener lis;
+ 
   std::string arm_name;
   std::string gripper_command;
   ros::NodeHandle nh,nh1;  
@@ -146,8 +146,9 @@ class GraspNode{
 
  public:
   GraspNode(const ros::NodeHandle &nh = ros::NodeHandle(), const ros::NodeHandle &nh1 = ros::NodeHandle("~")):
-    current_count(0),listen_times(2),isReceived(false),enable_arm(true),nh(nh),nh1(nh1),gripper_command("a"),spinner(1),group("left_arm")
+    current_count(0),listen_times(2),isReceived(false),enable_arm(true),nh(nh),nh1(nh1),gripper_command("a"),spinner(1),group("right_arm")
     {}
+  //Listener lis;
   void power(); 
   void init(); 
   bool navigation();
