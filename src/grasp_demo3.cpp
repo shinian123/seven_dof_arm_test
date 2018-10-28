@@ -157,7 +157,7 @@ void speechListener::speech_callback(const std_msgs::String::ConstPtr& msg){
      if(rec=="auto") mode = AUTO;
      if(rec=="supervised") mode = SUPERVISED; 
      if(rec=="manual") mode = MANUAL;
-     if(rec=="a_water")  mode =::WATER;
+     if(rec=="a_water")  mode =WATER;
      if(rec=="a_coke")  mode = COKE;
      if(rec=="reset") mode = RESET;
      if(rec=="wave_hands") mode =WAVE;
@@ -357,7 +357,7 @@ bool GraspNode::detect(){
       shape_msgs::SolidPrimitive primitive;
       primitive.type = primitive.CYLINDER;
       primitive.dimensions.resize(3);
-      primitive.dimensions[0] = 0.235;
+      primitive.dimensions[0] = 0.325;
       primitive.dimensions[1] = 0.035;
   //    primitive.dimensions[2] = 0.2;
 
@@ -582,7 +582,7 @@ bool GraspNode::arrive_plan(bool &arm,moveit::planning_interface::MoveGroup::Pla
        // and visualize it.
      // Note that we are just planning, not asking move_group 
      // to actually move the robot.
-      int plan_times= 10;
+      int plan_times= 220;
       for (int i=0;i<plan_times;i++){
         group.setStartState(*group.getCurrentState());
         group.setPoseTarget(target_pose2); 
@@ -647,7 +647,7 @@ bool GraspNode::arrive_execute(bool arm,moveit::planning_interface::MoveGroup::P
       pose.orientation.w = 1.0;
       pose.position.x = pose_average.position.x;
       pose.position.y = pose_average.position.y;
-      pose.position.z =0.375;
+      pose.position.z =0.355;
 
       /* Define a box to be attached */
       shape_msgs::SolidPrimitive primitive;
@@ -979,7 +979,7 @@ int main(int argc, char **argv){
     //printf("Current state: %d\n",state);
     //std::cout<< plis.mode << std::endl;//ROS_INFO(plis.mode);
     switch(speech_lis.mode){
-      case GRASP_WATER:
+      case WATER:
        // if(graspnode.detect(x,y,z)){
        //     ROS_INFO("First step of detection succeed!");
           if(true){	
@@ -1027,8 +1027,9 @@ int main(int argc, char **argv){
          // ROS_INFO("First step of detection failed!"); 
         //  sleep(5.0);
         //}
+        return 0;
         break;
-      case GRASP_COKE:
+      case COKE:
        // if(graspnode.detect(x,y,z)){
        //     ROS_INFO("First step of detection succeed!");
           if(true){ 
@@ -1041,12 +1042,14 @@ int main(int argc, char **argv){
                         sleep(5.0);
                         bool arrive_execute_success = graspnode.arrive_execute(arm,plan);
                         if(arrive_execute_success){
+                            pub_speech(&speech_signal_pub,"yes");
                             bool pick_plan_success =graspnode.pick_plan(arm,plan);
                             if(pick_plan_success){
+                                 pub_speech(&speech_signal_pub,"yes");
                                  bool pick_execute_success = graspnode.pick_execute(arm,plan);
                                 if(pick_execute_success){
                                     sleep(5.0);
-                                    graspnode.reset();
+                                    //graspnode.reset();
                                     pub_speech(&speech_signal_pub,"yes");
                                 }else{
                                   pub_speech(&speech_signal_pub,"no");
@@ -1076,6 +1079,7 @@ int main(int argc, char **argv){
          // ROS_INFO("First step of detection failed!"); 
         //  sleep(5.0);
         //}
+        return 0;
         break;  
       /*case DETECT:
 
@@ -1108,10 +1112,10 @@ int main(int argc, char **argv){
           ROS_INFO("Haven't deteccted objects yet!");
         }
         break;*/
-      case WATER:
+      case GRASP_WATER:
         graspnode.pick_water();
         break;
-      case COKE:
+      case GRASP_COKE:
         graspnode.pick_coke();
         break;
      /* case ARRIVEPLAN:
