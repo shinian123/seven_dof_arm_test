@@ -98,8 +98,8 @@ void Listener::CallBack(const object_recognition_msgs::RecognizedObjectArray::Co
       target_pose1.orientation.w = transform2.getRotation().getW();
 
 
-     printf("sample %d:\npose:\nx:%f\ty:%f\tz:%f\n",current_count, target_pose1.position.x,target_pose1.position.y,target_pose1.position.z);
-     printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w);
+      printf("sample %d:\npose:\nx:%f\ty:%f\tz:%f\n",current_count, target_pose1.position.x,target_pose1.position.y,target_pose1.position.z);
+      printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w);
 
       pose_sample.push_back(target_pose1);
 
@@ -131,7 +131,8 @@ void pluginListener::plugin_callback(const std_msgs::String::ConstPtr& msg){
      if(rec=="PLACEEXECUTE") mode = PLACEEXECUTE;
      if(rec=="NAVIGATION2")  mode = NAVIGATION2;
      if(rec=="RESET") mode = RESET;
-     if(rec=="POWER") mode = POWER;    
+     if(rec=="POWER") mode = POWER;
+     if(rec=="WAVE") mode = WAVE;   
 }
 
 void laserListener::CallBack_laserscan(const sensor_msgs::LaserScan &msg){
@@ -394,12 +395,12 @@ void GraspNode::decide_orientation(geometry_msgs::Pose *target_pose2,geometry_ms
       moveit::planning_interface::MoveGroup group("left_arm");
       *target_pose2 = pose_average;
       target_pose2->position.x=pose_average.position.x;
-      target_pose2->position.z=pose_average.position.z+0.25;
-      target_pose2->position.y=pose_average.position.y;
-      target_pose2->orientation.x=0;
-      target_pose2->orientation.y=-sqrt(2)/2;
-      target_pose2->orientation.z=sqrt(2)/2;
-      target_pose2->orientation.w=0;
+      target_pose2->position.z=pose_average.position.z+0.05;
+      target_pose2->position.y=pose_average.position.y+0.2;
+      target_pose2->orientation.x=0.991776;
+      target_pose2->orientation.y=-0.011776;
+      target_pose2->orientation.z=0.054329;
+      target_pose2->orientation.w=0.115287;
       group.setPoseTarget(*target_pose2);
       bool success = group.plan(my_plan);
       ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
@@ -474,10 +475,6 @@ void GraspNode::init(){
   sleep(2.0);
   // BEGIN_TUTORIAL
   
-  ROS_INFO("Reference frame: %s", group.getPlanningFrame().c_str());
-  
-  // We can also print the name of the end-effector link for this group.
-  ROS_INFO("Reference frame: %s", group.getEndEffectorLink().c_str());
   pub_gripper(&left_gripper_signal_pub,gripper_command);
     
   sleep(3.0);
@@ -520,15 +517,15 @@ bool GraspNode::detect(double &x,double &y,double &z){
       shape_msgs::SolidPrimitive primitive;
       primitive.type = primitive.CYLINDER;
       primitive.dimensions.resize(3);
-      primitive.dimensions[0] = 0.135;
-      primitive.dimensions[1] = 0.025;
+      primitive.dimensions[0] = 0.535;
+      primitive.dimensions[1] = 0.035;
   //    primitive.dimensions[2] = 0.2;
 
       geometry_msgs::Pose pose;
       pose.orientation.w = 1.0;
       pose.position.x = pose_average.position.x;
       pose.position.y = pose_average.position.y;
-      pose.position.z = pose_average.position.z+0.08;
+      pose.position.z = 0.375;
 
       cylinder.primitives.push_back(primitive);
       cylinder.primitive_poses.push_back(pose);
@@ -566,14 +563,14 @@ bool GraspNode::detect(double &x,double &y,double &z){
       shape_msgs::SolidPrimitive primitive3;
       primitive3.type = primitive.BOX;
       primitive3.dimensions.resize(3);
-      primitive3.dimensions[0] = 0.225;
+      primitive3.dimensions[0] = 0.525;
       primitive3.dimensions[1] = 0.55;
       primitive3.dimensions[2] = 0.33;
 
       /* A pose for the box (specified relative to frame_id) */
       geometry_msgs::Pose box2_pose;
       box2_pose.orientation.w = 1.0;
-      box2_pose.position.x =  0.88;
+      box2_pose.position.x =  0.73;
       box2_pose.position.y =  0.1;
       box2_pose.position.z =  0.13;
 
@@ -590,11 +587,11 @@ bool GraspNode::detect(double &x,double &y,double &z){
       planning_scene_interface.addCollisionObjects(collision_objects);
       ROS_INFO("Add collision objects into the world");
       sleep(2.0);
-      group.setPlanningTime(1.0);
+      //group.setPlanningTime(1.0);
 
 
       // Now when we plan a trajectory it will avoid the obstacle
-      group.setStartState(*group.getCurrentState());
+      //group.setStartState(*group.getCurrentState());
       lis.isReceived = false;
       return true;
     }else
@@ -665,17 +662,19 @@ bool GraspNode::navigation(){
 }
 
 bool GraspNode::arrive_plan(double x,double y,double z,bool &arm,moveit::planning_interface::MoveGroup::Plan &plan ){
+      moveit::planning_interface::MoveGroup group("right_arm");
+      group.setPlanningTime(1.0);
       group.setStartState(*group.getCurrentState());
       pose_average.position.x=x;
       pose_average.position.y=y;
       pose_average.position.z=z;
       //target_pose2 = pose_average;
       target_pose2.position.x=pose_average.position.x;
-      target_pose2.position.z=pose_average.position.z+0.25;
-      target_pose2.position.y=pose_average.position.y;
+      target_pose2.position.z=pose_average.position.z+0.05;
+      target_pose2.position.y=pose_average.position.y-0.15;
       target_pose2.orientation.x=0;
-      target_pose2.orientation.y=-sqrt(2)/2;
-      target_pose2.orientation.z=sqrt(2)/2;
+      target_pose2.orientation.y=0;
+      target_pose2.orientation.z=0;
       target_pose2.orientation.w=0;
       //leftwards:(x:0.991776 y:-0.011776 z:0.054329  w:0.115287)  downwards:(0,-sqrt(2)/2,sqrt(2)/2,0) rightwards:(0,0,0,0)
       //decide_target_pose(&target_pose2,1.002963-0.03,-0.0816710-0.03,0.391100,0,0,1,0);
@@ -698,17 +697,18 @@ bool GraspNode::arrive_plan(double x,double y,double z,bool &arm,moveit::plannin
           enable_arm = RIGHT_ARM;
           arm = RIGHT_ARM;
           plan = my_plan;
+          //group.execute(my_plan);
 	  return true;
       }else{
         moveit::planning_interface::MoveGroup group("left_arm");
         group.setStartState(*group.getCurrentState());
         target_pose2.position.x=pose_average.position.x;
-      	target_pose2.position.z=pose_average.position.z+0.25;
-      	target_pose2.position.y=pose_average.position.y;
-      	target_pose2.orientation.x=0;
-      	target_pose2.orientation.y=-sqrt(2)/2;
-      	target_pose2.orientation.z=sqrt(2)/2;
-      	target_pose2.orientation.w=0;
+      	target_pose2.position.z=pose_average.position.z+0.05;
+      	target_pose2.position.y=pose_average.position.y+0.2;
+      	target_pose2.orientation.x=0.991776;
+        target_pose2.orientation.y=-0.011776;
+        target_pose2.orientation.z=0.054329;
+        target_pose2.orientation.w=0.115287;
         group.setPoseTarget(target_pose2);
       ROS_INFO("Begin Planning!");
       bool success = group.plan(my_plan);
@@ -718,6 +718,7 @@ bool GraspNode::arrive_plan(double x,double y,double z,bool &arm,moveit::plannin
           enable_arm = LEFT_ARM;
           arm = LEFT_ARM;
           plan = my_plan;
+          //group.execute(my_plan);
 	  return true;        
          }else{
           moveit::planning_interface::MoveGroup group("left_arm");
@@ -737,12 +738,13 @@ bool GraspNode::arrive_plan(double x,double y,double z,bool &arm,moveit::plannin
             enable_arm = LEFT_ARM;
             arm = LEFT_ARM;
             plan = my_plan;
+            //group.execute(my_plan);
             }else{
               moveit::planning_interface::MoveGroup group("right_arm");
               group.setStartState(*group.getCurrentState());
               target_pose2 = pose_average;
             target_pose2.position.x=pose_average.position.x;
-            target_pose2.position.z=pose_average.position.z+0.25;
+            target_pose2.position.z=pose_average.position.z+0.2;
             target_pose2.position.y=pose_average.position.y;
             target_pose2.orientation.x=0;
             target_pose2.orientation.y=-sqrt(2)/2;
@@ -755,6 +757,7 @@ bool GraspNode::arrive_plan(double x,double y,double z,bool &arm,moveit::plannin
               enable_arm = RIGHT_ARM;
               arm = RIGHT_ARM;
               plan = my_plan;
+              //group.execute(my_plan);
               }else{
 		  return false;
 	        }
@@ -768,10 +771,10 @@ bool GraspNode::arrive_execute(bool arm,moveit::planning_interface::MoveGroup::P
     moveit::planning_interface::MoveGroup group("left_arm");
     bool success = group.execute(plan);
     if(success){
-      sleep(1.0);
-      gripper_command=75;
-      pub_gripper(&left_gripper_signal_pub,gripper_command);
-      sleep(1.0);
+      //sleep(1.0);
+      //gripper_command=75;
+      //pub_gripper(&left_gripper_signal_pub,gripper_command);
+      //sleep(1.0);
       ros::spinOnce();
       return true;
     }else{
@@ -781,10 +784,10 @@ bool GraspNode::arrive_execute(bool arm,moveit::planning_interface::MoveGroup::P
     moveit::planning_interface::MoveGroup group("right_arm");
     bool success = group.execute(plan);
     if(success){
-      sleep(1.0);
-      gripper_command=75;
-      pub_gripper(&right_gripper_signal_pub,gripper_command);
-      sleep(1.0);
+      //sleep(1.0);
+      //gripper_command=75;
+      //pub_gripper(&right_gripper_signal_pub,gripper_command);
+      //sleep(1.0);
       ros::spinOnce();
       return true;
     }else{
@@ -810,6 +813,7 @@ bool GraspNode::execute(double x,double y,double z){
       // target_pose2 = target_pose1;
       printf("pose:\nx:%f\ty:%f\tz:%f\n",target_pose2.position.x,target_pose2.position.y,target_pose2.position.z);
       printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose2.orientation.x,target_pose2.orientation.y,target_pose2.orientation.z,target_pose2.orientation.w);
+      moveit::planning_interface::MoveGroup group("right_arm");
       group.setPoseTarget(target_pose2);
       ROS_INFO("Begin Planning!");
   
@@ -838,10 +842,10 @@ bool GraspNode::execute(double x,double y,double z){
       	target_pose2.orientation.z=sqrt(2)/2;
       	target_pose2.orientation.w=0;
         group.setPoseTarget(target_pose2);
-      ROS_INFO("Begin Planning!");
-      bool success = group.plan(my_plan);
+        ROS_INFO("Begin Planning!");
+        bool success = group.plan(my_plan);
 
-      ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
+        ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
         if(success){
          // while(ros::ok()){
          //    printf("Plan again or just grasp?(p/g)");
@@ -912,7 +916,7 @@ bool GraspNode::execute(double x,double y,double z){
       }
       ros::spinOnce();
       sleep(2.0);
-      moveit::planning_interface::MoveGroup group(arm_name);
+     // moveit::planning_interface::MoveGroup group(arm_name);
       group.setPlanningTime(1.0);
       // printf("Have we grasped the object?(y/n)");
       // scanf("%s",&haveGrasp);
@@ -924,6 +928,7 @@ bool GraspNode::execute(double x,double y,double z){
     sleep(1.0);
     vector<double> group_variable_values;
     if(enable_arm==LEFT_ARM){
+                moveit::planning_interface::MoveGroup group("left_arm");
 		/*target_pose_temp.position.x=0.864536;
 		target_pose_temp.position.y=0.367802;
 		target_pose_temp.position.z=0.945851;
@@ -949,6 +954,7 @@ bool GraspNode::execute(double x,double y,double z){
 		target_pose_temp.orientation.y=0.593277;
 		target_pose_temp.orientation.z=0.654907;
 		target_pose_temp.orientation.w=-0.319300;*/
+                 moveit::planning_interface::MoveGroup group("right_arm");
 		group.setStartState(*group.getCurrentState());
 		  group_variable_values.push_back(-2.815427);
 		  group_variable_values.push_back(-1.499180);
@@ -996,7 +1002,7 @@ bool GraspNode::execute(double x,double y,double z){
 		group_variable_values.push_back(-1.612);
 		group_variable_values.push_back(-1.5708);
 		group.setJointValueTarget(group_variable_values);
-			bool hui_success = group.plan(my_plan);
+		bool hui_success = group.plan(my_plan);
 		ROS_INFO("Visualizing plan 1 (pose goal) %s",hui_success?"SUCCEED":"FAILED");
 	      	if(hui_success){ 
 	      		bool hui_exc=group.execute(my_plan);
@@ -1018,7 +1024,7 @@ bool GraspNode::execute(double x,double y,double z){
 		group_variable_values.push_back(1.912136);
 		group_variable_values.push_back(1.465337);
 		group.setJointValueTarget(group_variable_values);
-			bool hui_success = group.plan(my_plan);
+		bool hui_success = group.plan(my_plan);
 		ROS_INFO("Visualizing plan 1 (pose goal) %s",hui_success?"SUCCEED":"FAILED");
 	      	if(hui_success){ 
 	      		bool hui_exc=group.execute(my_plan);
@@ -1048,16 +1054,16 @@ bool GraspNode::execute(double x,double y,double z){
 bool GraspNode::pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &plan){
     sleep(2.0);
     
-    group.setPlanningTime(1.0);
+   
     // printf("Have we grasped the object?(y/n)");
     // scanf("%s",&haveGrasp);
     std::vector<std::string> object_ids;
     object_ids.push_back("cylinder");
     planning_scene_interface.removeCollisionObjects(object_ids);
-    group.setStartState(*group.getCurrentState());
     
     if(arm==LEFT_ARM){
       moveit::planning_interface::MoveGroup group("left_arm");
+      group.setPlanningTime(1.0);
 	 group.setStartState(*group.getCurrentState());
       //target_pose_temp.position.x=0.864536;
       //target_pose_temp.position.y=0.367802;
@@ -1079,12 +1085,14 @@ bool GraspNode::pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &
       bool pick_success = group.plan(my_plan);
       if(pick_success){
         plan =my_plan;
+        //group.execute(my_plan);
         return true;
         }else{
         return false;
         }
      }else{
           moveit::planning_interface::MoveGroup group("right_arm");
+           group.setPlanningTime(1.0);
           //target_pose_temp.position.x=0.566997;
           //target_pose_temp.position.y=-0.435485;
           //target_pose_temp.position.z=1.055114;
@@ -1106,6 +1114,7 @@ bool GraspNode::pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &
           bool pick_success = group.plan(my_plan);
           if(pick_success){
             plan =my_plan;
+            //group.execute(my_plan);
             return true;
           }else{
             return false;
@@ -1122,11 +1131,11 @@ bool GraspNode::pick_execute(bool arm,moveit::planning_interface::MoveGroup::Pla
       moveit::planning_interface::MoveGroup group("left_arm");
       bool success = group.execute(plan);
       if(success){
-        sleep(3.0);
-        gripper_command="o";
-        pub_gripper(&left_gripper_signal_pub,gripper_command);
+        //sleep(3.0);
+        //gripper_command="o";
+        //pub_gripper(&left_gripper_signal_pub,gripper_command);
         ros::spinOnce();
-        sleep(3.0);
+        //sleep(3.0);
         return true;
       }else{
         return false;
@@ -1135,16 +1144,75 @@ bool GraspNode::pick_execute(bool arm,moveit::planning_interface::MoveGroup::Pla
       moveit::planning_interface::MoveGroup group("right_arm");
       bool success = group.execute(plan);
       if(success){
-        sleep(3.0);
-        gripper_command="o";
-        pub_gripper(&right_gripper_signal_pub,gripper_command);
+        //sleep(3.0);
+        //gripper_command="o";
+        //pub_gripper(&right_gripper_signal_pub,gripper_command);
         ros::spinOnce();
-        sleep(3.0);
+        //sleep(3.0);
         return true;
       }else{
         return false;
       }
     }
+
+}
+bool GraspNode::wave(){
+   moveit::planning_interface::MoveGroup group("left_arm");
+        group.setPlannerId("RRTstarkConfigDefault");
+        group.setPlanningTime(1.0);
+ 	moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
+
+ 	//ros::Publisher display_publisher = node_handle.advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
+	moveit_msgs::DisplayTrajectory display_trajectory;
+	moveit::planning_interface::MoveGroup::Plan my_plan;
+        bool success;
+        bool ex;
+        int times=0;
+	//first pose target
+	std::vector<double> group_variable_values;
+        
+        for(times=0;times<3;times++){
+		group_variable_values.clear();
+		group_variable_values.push_back(0.903638);
+		group_variable_values.push_back(-2.22677);
+		group_variable_values.push_back(0.494097);
+		group_variable_values.push_back(-0.4074195);
+		group_variable_values.push_back(1.707196);
+		group_variable_values.push_back(2.9010196);
+		group.setStartState(*group.getCurrentState());
+		group.setJointValueTarget(group_variable_values); 
+		success = group.plan(my_plan);
+		if(success){
+			ex = group.execute(my_plan);
+			if(!ex)
+				ROS_INFO("first exe failed!");
+		}
+
+
+		group_variable_values.clear();
+		//group_variable_values.push_back(1.23378980);
+		//group_variable_values.push_back(-2.73414451);
+                group_variable_values.push_back(0.903638);
+                group_variable_values.push_back(-2.22677);
+		group_variable_values.push_back(-0.0581005);
+		//group_variable_values.push_back(-2.5075467);
+		//group_variable_values.push_back(-1.527659);
+		//group_variable_values.push_back(-0.5171774);
+		group_variable_values.push_back(-0.4074195);
+		group_variable_values.push_back(1.707196);
+		group_variable_values.push_back(2.9010196);
+		group.setStartState(*group.getCurrentState());
+		group.setJointValueTarget(group_variable_values);
+
+		success = group.plan(my_plan);
+
+		if(success){
+		        bool ex=group.execute(my_plan);
+                                               
+		}
+		
+	}
+        return true;
 
 }
 bool GraspNode::reset(){
@@ -1243,14 +1311,13 @@ int main(int argc, char **argv){
     ss.str("");
     sleep(1.0);   
     
-    printf("Current state: %d\n",state);
+    //printf("Current state: %d\n",state);
     //std::cout<< plis.mode << std::endl;//ROS_INFO(plis.mode);
     switch(plis.mode){
       case AUTO:
-        state = 0;
        // if(graspnode.detect(x,y,z)){
        //     ROS_INFO("First step of detection succeed!");
-          if(graspnode.navigation()){
+          if(true){
     	      ROS_INFO("Navigation succeed!");	
     	      if(graspnode.detect(x,y,z)){
     	      ROS_INFO("Second step of detection succeed!");
@@ -1274,21 +1341,20 @@ int main(int argc, char **argv){
         //}
         break;
       case DETECT:
-      	if(state==1){
-      		detect_success = graspnode.detect(x,y,z);
-      		if(detect_success){
-      		  ss<<"Detect succeed!";
-                  state = 2;
-      		}else{
-      		  ss<<"Detect failed!";
-      		}
-      		msg.data = ss.str();
-      		plugin_return_pub.publish(msg);
-      		ROS_INFO("Detect plugin return has been published!");
-      		plis.mode = 0;
-      		ros::spinOnce();
+
+
+	detect_success = graspnode.detect(x,y,z);
+	if(detect_success){
+	  ss<<"Detect succeed!";
+	}else{
+	  ss<<"Detect failed!";
+	}
+	msg.data = ss.str();
+	plugin_return_pub.publish(msg);
+	ROS_INFO("Detect plugin return has been published!");
+	plis.mode = 0;
+	ros::spinOnce();
       		
-      	}
         break;
       case NAVIGATION1:
         if(true){
@@ -1300,7 +1366,6 @@ int main(int argc, char **argv){
           plugin_return_pub.publish(msg);
           ROS_INFO("Navigation plugin return has been published!");
           ros::spinOnce();
-          state = 1;
  	        plis.mode = 0;
         }else{
           ROS_INFO("Haven't deteccted objects yet!");
@@ -1319,29 +1384,21 @@ int main(int argc, char **argv){
               ROS_INFO("Plan plugin return has been published!");
               ros::spinOnce();
               plis.mode = 0;
-          }else{
-             ROS_INFO("Haven't detected objects yet!");
           }
           break;
       case ARRIVEEXECUTE:
-        if(state == 2){
           execute_success = graspnode.arrive_execute(arm,plan);
           if(execute_success) {
             ss << "Execute succeed!";
-            state = 3;
           }
           else ss << "Execute failed!";
           msg.data = ss.str();
           plugin_return_pub.publish(msg);
           ROS_INFO("Execute plugin return has been published!");
           ros::spinOnce();
-	         plis.mode = 0;
-        }else{
-          ROS_INFO("Haven't planed arriving yet!");
-        }
+	  plis.mode = 0;
         break;
    case PICKPLAN:
-        if(true){
           plan_success = graspnode.pick_plan(arm,plan);
           if(execute_success) {
             ss << "Plan succeed!";
@@ -1352,13 +1409,9 @@ int main(int argc, char **argv){
           plugin_return_pub.publish(msg);
           ROS_INFO("Plan plugin return has been published!");
           ros::spinOnce();
-           plis.mode = 0;
-        }else{
-          ROS_INFO("Haven't arrived yet!");
-        }
+          plis.mode = 0;
         break;
    case PICKEXECUTE:
-        if(state == 3){
           execute_success = graspnode.pick_execute(arm,plan);
           if(execute_success) {
             ss << "Execute succeed!";
@@ -1370,9 +1423,6 @@ int main(int argc, char **argv){
           ROS_INFO("Execute plugin return has been published!");
           ros::spinOnce();
            plis.mode = 0;
-        }else{
-          ROS_INFO("Haven't planed picking yet!");
-        }
         break;
 	 case RESET:
           reset_success = graspnode.reset();
@@ -1397,10 +1447,20 @@ int main(int argc, char **argv){
         ROS_INFO("Power plugin return has been published!");
         ros::spinOnce();
         plis.mode = 0;
+        break;
+   case WAVE:
+        sleep(1.0);
+	graspnode.wave();
+	ss<<"Wave succeed!";
+	msg.data = ss.str();
+        plugin_return_pub.publish(msg);
+        ROS_INFO("Wave plugin return has been published!");
+        ros::spinOnce();
+        plis.mode = 0;
+        break;
       default:
         ;
     }
-    
   }
   return 0;
 }

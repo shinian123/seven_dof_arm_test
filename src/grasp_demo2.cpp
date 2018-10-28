@@ -34,7 +34,7 @@
 
 /* Author: Sachin Chitta */
 
-#include "grasp_demo.h"
+#include "grasp_demo2.h"
 
 geometry_msgs::Pose Listener::add_pose(geometry_msgs::Pose pose1,geometry_msgs::Pose pose2){
 
@@ -72,51 +72,79 @@ void Listener::CallBack(const object_recognition_msgs::RecognizedObjectArray::Co
 
       if(current_count<=listen_times){
       //ROS_INFO("I hear the pose!");
-
-      geometry_msgs::Pose pose_init=msg->objects[0].pose.pose.pose;
-      //printf("%f\n",msg->objects[0].pose.pose.pose.position.x);
-      tf::StampedTransform transform;
-      tf::TransformListener listener;
-      try {
+      int object_num = msg->objects.size();
+      if(object_num>max_object_num) max_object_num = object_num;
+      ROS_INFO("Total number of recognized objects:%d",object_num);
+      for(int num=0;num<object_num;num++){
+         geometry_msgs::Pose pose_init=msg->objects[num].pose.pose.pose;
+         //printf("%f\n",msg->objects[0].pose.pose.pose.position.x);
+         tf::StampedTransform transform;
+         tf::TransformListener listener;
+         try {
             listener.waitForTransform("/kinect2_rgb_optical_frame", "/base_link", ros::Time(0), ros::Duration(10.0));
             listener.lookupTransform("/kinect2_rgb_optical_frame", "/base_link", ros::Time(0), transform);
-        } catch (tf::TransformException ex) {
-            ROS_ERROR("%s",ex.what());
-        }
+          } catch (tf::TransformException ex) {
+              ROS_ERROR("%s",ex.what());
+          }
       
-      tf::Transform transform1 = transform.inverse(), transform2(tf::Quaternion(pose_init.orientation.x, pose_init.orientation.y, pose_init.orientation.z, pose_init.orientation.w), tf::Vector3(pose_init.position.x, pose_init.position.y, pose_init.position.z));
-      transform2 = transform1 * transform2;
+          tf::Transform transform1 = transform.inverse(), transform2(tf::Quaternion(pose_init.orientation.x, pose_init.orientation.y, pose_init.orientation.z, pose_init.orientation.w), tf::Vector3(pose_init.position.x, pose_init.position.y, pose_init.position.z));
+          transform2 = transform1 * transform2;
       /*target_pose1.position=pose_init.position;
       target_pose1.orientation=pose_init.orientation;*/
-      geometry_msgs::Pose target_pose1;
-      target_pose1.position.x = transform2.getOrigin().getX();
-      target_pose1.position.y = transform2.getOrigin().getY();
-      target_pose1.position.z = transform2.getOrigin().getZ();
-      target_pose1.orientation.x = transform2.getRotation().getX();
-      target_pose1.orientation.y = transform2.getRotation().getY();
-      target_pose1.orientation.z = transform2.getRotation().getZ();
-      target_pose1.orientation.w = transform2.getRotation().getW();
+         geometry_msgs::Pose target_pose1;
+         target_pose1.position.x = transform2.getOrigin().getX();
+         target_pose1.position.y = transform2.getOrigin().getY();
+         target_pose1.position.z = transform2.getOrigin().getZ();
+         target_pose1.orientation.x = transform2.getRotation().getX();
+         target_pose1.orientation.y = transform2.getRotation().getY();
+         target_pose1.orientation.z = transform2.getRotation().getZ();
+         target_pose1.orientation.w = transform2.getRotation().getW();
 
 
-      printf("sample %d:\npose:\nx:%f\ty:%f\tz:%f\n",current_count, target_pose1.position.x,target_pose1.position.y,target_pose1.position.z);
-      printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w);
+     printf("sample %d:\npose:\nx:%f\ty:%f\tz:%f\n",current_count, target_pose1.position.x,target_pose1.position.y,target_pose1.position.z);
+     printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w);
 
-      pose_sample.push_back(target_pose1);
-
+      pose_sample[num].push_back(target_pose1);
+   }
       }
       else{
-	
+  
         //printf("pose:\nx:%f\ty:%f\tz:%f\n",target_pose1.position.x,target_pose1.position.y,target_pose1.position.z);
         //printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w); 
-        pose_ans = average_pose(pose_sample , listen_times);
+       vector<geometry_msgs::Pose> pose_valid;  
+       for(int i=0;i<max_object_num;i++){        
+        pose_ans[i] = average_pose(pose_sample[i], listen_times);
+        if(pose_ans[i].position.x<1.0&&pose_ans[i].position.x>0.7&&pose_ans[i].position.y>-0.28&&pose_ans[i].position.y<0.28){
         //pose_sample.clear();
-        printf("average:\npose:\nx:%f\ty:%f\tz:%f\n", pose_ans.position.x,pose_ans.position.y,pose_ans.position.z);
-        printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",pose_ans.orientation.x,pose_ans.orientation.y,pose_ans.orientation.z,pose_ans.orientation.w);
+        printf("average:\npose:\nx:%f\ty:%f\tz:%f\n", pose_ans[i].position.x,pose_ans[i].position.y,pose_ans[i].position.z);
+        //printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",pose_ans.orientation.x,pose_ans.orientation.y,pose_ans.orientation.z,pose_ans.orientation.w);
         //ROS_INFO("STOP!!!");
-	isReceived = true;
+          pose_valid.push_back(pose_ans[i]);
         }
+         
+
+       }
+       int min_y,max_y;
+       min_y = pose_valid[0].position.y;
+       max_y = pose_valid[0].position.y;
+       pose_final[0] = pose_valid[0];
+       pose_final[1] = pose_valid[0];//1--coke 2--shanquan
+       if(pose_valid.size()>1){
+        for(int i=1;i<pose_valid.size();i++){
+          if(pose_valid[i].position.y<min_y){
+             pose_final[1]= pose_valid[i];
+           }
+          if(pose_valid[i].position.y>max_y){
+             pose_final[0]= pose_valid[i];
+           }
+        }
+       }
+       printf("Water:\npose:\nx:%f\ty:%f\tz:%f\n", pose_final[0].position.x,pose_final[0].position.y,pose_final[0].position.z);
+       printf("Coke:\npose:\nx:%f\ty:%f\tz:%f\n", pose_final[1].position.x,pose_final[1].position.y,pose_final[1].position.z);
+  isReceived = true;
+       }
       }
-} 
+}
 void pluginListener::plugin_callback(const std_msgs::String::ConstPtr& msg){
      std::string rec = msg->data;
      ROS_INFO("I heard %s!", rec.c_str());
@@ -129,10 +157,12 @@ void pluginListener::plugin_callback(const std_msgs::String::ConstPtr& msg){
      if(rec=="PICKEXECUTE") mode = PICKEXECUTE;
      if(rec=="PLACEPLAN") mode = PLACEPLAN; 
      if(rec=="PLACEEXECUTE") mode = PLACEEXECUTE;
-     if(rec=="NAVIGATION2")  mode = NAVIGATION2;
+     if(rec=="WATER")  mode = WATER;
+     if(rec=="COKE")  mode = COKE;
      if(rec=="RESET") mode = RESET;
      if(rec=="POWER") mode = POWER;
-     if(rec=="WAVE") mode = WAVE;   
+     if(rec=="WAVE") mode = WAVE;
+     if(rec=="CLEAR_SCENE") mode =CLEARSCENE;   
 }
 
 void laserListener::CallBack_laserscan(const sensor_msgs::LaserScan &msg){
@@ -223,94 +253,9 @@ geometry_msgs::Pose GraspNode::average_pose(vector<geometry_msgs::Pose> pose1, i
   return pose_ans;
 }
 
-void GraspNode::middleStateDecision(geometry_msgs::Pose pose_terminal, geometry_msgs::Pose *pose_middle){
-  // decide_target_pose(pose_middle,0.9*pose_terminal.position.x,pose_terminal.position.y-0.3,1.2*pose_terminal.position.z,pose_terminal.orientation.x,pose_terminal.
-  //  orientation.y,pose_terminal.orientation.z,pose_terminal.orientation.w);
-  decide_target_pose(pose_middle,pose_terminal.position.x-0.2,pose_terminal.position.y,2*pose_terminal.position.z,0,0,-sqrt(2)/2,sqrt(2)/2);
-}
-
-void GraspNode::SubCallBack(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg)
-{
-    if(&(msg->objects[0])!=NULL) {
-      current_count++;
-
-      if(current_count<=listen_times){
-      //ROS_INFO("I hear the pose!");
-
-      geometry_msgs::Pose pose_init=msg->objects[0].pose.pose.pose;
-      //printf("%f\n",msg->objects[0].pose.pose.pose.position.x);
-      tf::StampedTransform transform;
-      tf::TransformListener listener;
-      try {
-            listener.waitForTransform("/kinect2_rgb_optical_frame", "/base_link", ros::Time(0), ros::Duration(10.0));
-            listener.lookupTransform("/kinect2_rgb_optical_frame", "/base_link", ros::Time(0), transform);
-        } catch (tf::TransformException ex) {
-            ROS_ERROR("%s",ex.what());
-        }
-      
-      tf::Transform transform1 = transform.inverse(), transform2(tf::Quaternion(pose_init.orientation.x, pose_init.orientation.y, pose_init.orientation.z, pose_init.orientation.w), tf::Vector3(pose_init.position.x, pose_init.position.y, pose_init.position.z));
-      transform2 = transform1 * transform2;
-      /*target_pose1.position=pose_init.position;
-      target_pose1.orientation=pose_init.orientation;*/
-      
-      target_pose1.position.x = transform2.getOrigin().getX();
-      target_pose1.position.y = transform2.getOrigin().getY();
-      target_pose1.position.z = transform2.getOrigin().getZ();
-      target_pose1.orientation.x = transform2.getRotation().getX();
-      target_pose1.orientation.y = transform2.getRotation().getY();
-      target_pose1.orientation.z = transform2.getRotation().getZ();
-      target_pose1.orientation.w = transform2.getRotation().getW();
 
 
-      //printf("sample %d:\npose:\nx:%f\ty:%f\tz:%f\n",current_count, target_pose1.position.x,target_pose1.position.y,target_pose1.position.z);
-      //printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w);
 
-      pose_sample.push_back(target_pose1);
-
-      }
-      else{
-        //printf("pose:\nx:%f\ty:%f\tz:%f\n",target_pose1.position.x,target_pose1.position.y,target_pose1.position.z);
-        //printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w);
-        isReceived = true; 
-        pose_average = average_pose(pose_sample , listen_times);
-        printf("average:\npose:\nx:%f\ty:%f\tz:%f\n", pose_average.position.x,pose_average.position.y,pose_average.position.z);
-        printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",pose_average.orientation.x,pose_average.orientation.y,pose_average.orientation.z,pose_average.orientation.w);
-        ROS_INFO("STOP!!!");
-        }
-      }
- }     
-bool GraspNode::ourplan(moveit::planning_interface::MoveGroup *group,geometry_msgs::Pose target_pose2,moveit::planning_interface::MoveGroup::Plan *my_plan){
-      //target_pose2=target_pose1;
-      printf("pose:\nx:%f\ty:%f\tz:%f\n",target_pose2.position.x,target_pose2.position.y,target_pose2.position.z);
-      printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose2.orientation.x,target_pose2.orientation.y,target_pose2.orientation.z,target_pose2.orientation.w);
-      group->setPoseTarget(target_pose2);
-      ROS_INFO("Begin Planning!");
-  
-      // Now, we call the planner to compute the plan
-       // and visualize it.
-     // Note that we are just planning, not asking move_group 
-     // to actually move the robot.
-      bool success = group->plan(*my_plan);
-
-      ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED");
-      sleep(5.0);
-      return success;
-
-    
-}
-
-void GraspNode::decide_target_pose(geometry_msgs::Pose *target_pose,double pose_x,double pose_y,double pose_z,double orientation_x,double orientation_y,double orientation_z,double orientation_w){
-
-
-  target_pose->position.x = pose_x;
-  target_pose->position.y = pose_y;
-  target_pose->position.z = pose_z;
-  target_pose->orientation.x = orientation_x;
-  target_pose->orientation.y = orientation_y;
-  target_pose->orientation.z = orientation_z;
-  target_pose->orientation.w = orientation_w;
-
-}
 void GraspNode::pub_gripper(ros::Publisher *pub, std::string str){
 
   std_msgs::String msg;
@@ -319,134 +264,6 @@ void GraspNode::pub_gripper(ros::Publisher *pub, std::string str){
     msg.data = ss.str();
     pub->publish(msg);
   ROS_INFO("gripper signal has been published!");
-}
-void GraspNode::decide_orientation(geometry_msgs::Pose *target_pose2,geometry_msgs::Pose pose_average){
-  moveit::planning_interface::MoveGroup group("left_arm");
-  moveit::planning_interface::MoveGroup::Plan my_plan;
-  *target_pose2 = pose_average;
-  target_pose2->position.x=pose_average.position.x;
-  target_pose2->position.z=pose_average.position.z+0.02;
-  target_pose2->position.y=pose_average.position.y+0.2;
-  target_pose2->orientation.x=0.991776;
-  target_pose2->orientation.y=-0.011776;
-  target_pose2->orientation.z=0.054329;
-  target_pose2->orientation.w=0.115287;
-  //leftwards:(x:0.991776 y:-0.011776 z:0.054329  w:0.115287)  downwards:(0,-sqrt(2)/2,sqrt(2)/2,0) rightwards:(0,0,0,0)
-  //decide_target_pose(&target_pose2,1.002963-0.03,-0.0816710-0.03,0.391100,0,0,1,0);
-
-  // target_pose2 = target_pose1;
-  printf("pose:\nx:%f\ty:%f\tz:%f\n",target_pose2->position.x,target_pose2->position.y,target_pose2->position.z);
-  printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose2->orientation.x,target_pose2->orientation.y,target_pose2->orientation.z,target_pose2->orientation.w);
-  group.setPoseTarget(*target_pose2);
-  ROS_INFO("Begin Planning!");
-
-  // Now, we call the planner to compute the plan
-   // and visualize it.
- // Note that we are just planning, not asking move_group 
- // to actually move the robot.
-  
-  bool success = group.plan(my_plan);
-
-  ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
-  if(success){
-     // while(ros::ok()){
-     //    printf("Plan again or just grasp?(p/g)");
-     //    scanf("%s",&porg);
-     //    if(porg=='g')
-     //      break; 
-     //    else ourplan(&group,target_pose2,&my_plan);             
-     // }
-     //printf("Can we start grasping?(y/n)");
-     //scanf("%s",&isGrasp);
-     //if(isGrasp=='y') 
-      enable_arm = LEFT_ARM;
-      bool ex = group.execute(my_plan);
-      if(!ex) {
-        power();
-      }
-  }else{
-    moveit::planning_interface::MoveGroup group("right_arm");
-    target_pose2->position.x=pose_average.position.x;
-    target_pose2->position.z=pose_average.position.z+0.02;
-    target_pose2->position.y=pose_average.position.y+0.2;
-    target_pose2->orientation.x=0;
-    target_pose2->orientation.y=0;
-    target_pose2->orientation.z=0;
-    target_pose2->orientation.w=0;
-    group.setPoseTarget(*target_pose2);
-  ROS_INFO("Begin Planning!");
-  bool success = group.plan(my_plan);
-
-  ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
-    if(success){
-     // while(ros::ok()){
-     //    printf("Plan again or just grasp?(p/g)");
-     //    scanf("%s",&porg);
-     //    if(porg=='g')
-     //      break; 
-     //    else ourplan(&group,target_pose2,&my_plan); 
-      // } 
-      enable_arm = RIGHT_ARM;
-      bool ex=group.execute(my_plan);
-      if(!ex) {
-          power();
-        }           
-     }else{
-      moveit::planning_interface::MoveGroup group("left_arm");
-      *target_pose2 = pose_average;
-      target_pose2->position.x=pose_average.position.x;
-      target_pose2->position.z=pose_average.position.z+0.05;
-      target_pose2->position.y=pose_average.position.y+0.2;
-      target_pose2->orientation.x=0.991776;
-      target_pose2->orientation.y=-0.011776;
-      target_pose2->orientation.z=0.054329;
-      target_pose2->orientation.w=0.115287;
-      group.setPoseTarget(*target_pose2);
-      bool success = group.plan(my_plan);
-      ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
-      if(success){
-        // while(ros::ok()){
-       //     printf("Plan again or just grasp?(p/g)");
-       //     scanf("%s",&porg);
-       //     if(porg=='g')
-       //        break; 
-       //     else ourplan(&group,target_pose2,&my_plan);
-       //   }
-        enable_arm = LEFT_ARM;
-          bool ex=group.execute(my_plan);
-        if(!ex) {
-            power();
-          }
-        }else{
-          moveit::planning_interface::MoveGroup group("right_arm");
-          *target_pose2 = pose_average;
-        target_pose2->position.x=pose_average.position.x;
-        target_pose2->position.z=pose_average.position.z+0.25;
-        target_pose2->position.y=pose_average.position.y;
-        target_pose2->orientation.x=0;
-        target_pose2->orientation.y=-sqrt(2)/2;
-        target_pose2->orientation.z=sqrt(2)/2;
-        target_pose2->orientation.w=0;
-        group.setPoseTarget(*target_pose2);
-        bool success = group.plan(my_plan);
-        ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
-        if(success){
-          // while(ros::ok()){
-        //      printf("Plan again or just grasp?(p/g)");
-        //      scanf("%s",&porg);
-        //      if(porg=='g')
-        //         break; 
-        //      else ourplan(&group,target_pose2,&my_plan);
-        //    }
-          enable_arm = RIGHT_ARM;
-            bool ex=group.execute(my_plan);
-        if(!ex) {
-            power();
-            }
-          }
-        }
-     }
-    } 
 }
 void GraspNode::init(){
   isBegin='a';
@@ -486,7 +303,15 @@ void GraspNode::init(){
   ros::spinOnce();
     
 }
-bool GraspNode::detect(double &x,double &y,double &z){
+void GraspNode::pick_water(){
+    whichobject = WATER;
+    ROS_INFO("Pick the water bottle!");
+}
+void GraspNode::pick_coke(){
+    whichobject = COKE;
+    ROS_INFO("Pick the coke!");
+}
+bool GraspNode::detect(){
     Listener lis;
     sub=nh.subscribe("recognized_object_array", 1000, &Listener::CallBack,&lis);
     std_msgs::String msg;
@@ -496,11 +321,16 @@ bool GraspNode::detect(double &x,double &y,double &z){
     start_ork_pub.publish(msg);
     while(!lis.isReceived);
     if(lis.isReceived){
-    pose_average = lis.pose_ans;
-    x=pose_average.position.x;
-    y=pose_average.position.y;
-    z=pose_average.position.z;
-    target_pose2 = lis.pose_ans;
+    pose_water.position.x=lis.pose_final[0].position.x;
+    pose_water.position.y=lis.pose_final[0].position.y;
+    pose_water.position.z=0.37;
+    pose_water.orientation.w =1.0;
+    pose_coke.position.x=lis.pose_final[1].position.x;
+    pose_coke.position.y=lis.pose_final[1].position.y;
+    pose_coke.position.z=0.37;
+    pose_coke.orientation.w = 1.0;
+
+    
     ss.str("");
     ss.clear();
     ss << "Pause object recognition";
@@ -510,7 +340,7 @@ bool GraspNode::detect(double &x,double &y,double &z){
     
     sleep(1.0);
 
-      moveit_msgs::CollisionObject cylinder,box1,box2;
+     moveit_msgs::CollisionObject cylinder,box1,box2,cyl2,wall;
 
       cylinder.id = "cylinder";
 
@@ -523,14 +353,31 @@ bool GraspNode::detect(double &x,double &y,double &z){
 
       geometry_msgs::Pose pose;
       pose.orientation.w = 1.0;
-      pose.position.x = pose_average.position.x;
-      pose.position.y = pose_average.position.y;
-      pose.position.z = 0.375;
+      pose.position.x = pose_water.position.x;
+      pose.position.y = pose_water.position.y;
+      pose.position.z = 0.37;
 
       cylinder.primitives.push_back(primitive);
       cylinder.primitive_poses.push_back(pose);
       cylinder.operation = cylinder.ADD;
 
+      shape_msgs::SolidPrimitive cyl2_primitive;
+      cyl2_primitive.type = primitive.CYLINDER;
+      cyl2_primitive.dimensions.resize(3);
+      cyl2_primitive.dimensions[0] = 0.125;
+      cyl2_primitive.dimensions[1] = 0.035;
+  //    primitive.dimensions[2] = 0.2;
+
+      cyl2.id = "cyl2";
+      geometry_msgs::Pose cyl2_pose;
+      cyl2_pose.orientation.w = 1.0;
+      cyl2_pose.position.x = pose_coke.position.x;
+      cyl2_pose.position.y = pose_coke.position.y;
+      cyl2_pose.position.z = 0.37;
+
+      cyl2.primitives.push_back(cyl2_primitive);
+      cyl2.primitive_poses.push_back(cyl2_pose);
+      cyl2.operation = cyl2.ADD;
    
       
 
@@ -539,7 +386,7 @@ bool GraspNode::detect(double &x,double &y,double &z){
 
       /* Define a box to add to the world. */
       shape_msgs::SolidPrimitive primitive2;
-      primitive2.type = primitive.BOX;
+      primitive2.type = primitive2.BOX;
       primitive2.dimensions.resize(3);
       primitive2.dimensions[0] = 10.2;
       primitive2.dimensions[1] = 10.2;
@@ -563,14 +410,14 @@ bool GraspNode::detect(double &x,double &y,double &z){
       shape_msgs::SolidPrimitive primitive3;
       primitive3.type = primitive.BOX;
       primitive3.dimensions.resize(3);
-      primitive3.dimensions[0] = 0.525;
+      primitive3.dimensions[0] = 0.225;
       primitive3.dimensions[1] = 0.55;
       primitive3.dimensions[2] = 0.33;
 
       /* A pose for the box (specified relative to frame_id) */
       geometry_msgs::Pose box2_pose;
       box2_pose.orientation.w = 1.0;
-      box2_pose.position.x =  0.73;
+      box2_pose.position.x =  0.88;
       box2_pose.position.y =  0.1;
       box2_pose.position.z =  0.13;
 
@@ -578,16 +425,40 @@ bool GraspNode::detect(double &x,double &y,double &z){
       box2.primitive_poses.push_back(box2_pose);
       box2.operation = box2.ADD;
 
+
+      wall.id = "wall";
+
+      /* Define a box to add to the world. */
+      shape_msgs::SolidPrimitive primitive4;
+      primitive4.type = primitive.BOX;
+      primitive4.dimensions.resize(3);
+      primitive4.dimensions[0] = 3.0;
+      primitive4.dimensions[1] = 0.1;
+      primitive4.dimensions[2] = 3.0;
+
+      /* A pose for the box (specified relative to frame_id) */
+      geometry_msgs::Pose wall_pose;
+      wall_pose.orientation.w = 1.0;
+      wall_pose.position.x =  0;
+      wall_pose.position.y =  1.8;
+      wall_pose.position.z =  0;
+
+      wall.primitives.push_back(primitive4);
+      wall.primitive_poses.push_back(wall_pose);
+      wall.operation = wall.ADD;
+
       
       collision_objects.push_back(cylinder);
       collision_objects.push_back(box1);
       collision_objects.push_back(box2);
+      collision_objects.push_back(cyl2);
+      //collision_objects.push_back(wall);
       // Once all of the objects (in this case just one) have been added to the
       // vector, we tell the planning scene to add our new box
       planning_scene_interface.addCollisionObjects(collision_objects);
       ROS_INFO("Add collision objects into the world");
       sleep(2.0);
-      //group.setPlanningTime(1.0);
+      ///group.setPlanningTime(1.0);
 
 
       // Now when we plan a trajectory it will avoid the obstacle
@@ -661,114 +532,70 @@ bool GraspNode::navigation(){
 
 }
 
-bool GraspNode::arrive_plan(double x,double y,double z,bool &arm,moveit::planning_interface::MoveGroup::Plan &plan ){
-      moveit::planning_interface::MoveGroup group("right_arm");
+bool GraspNode::arrive_plan(bool &arm,moveit::planning_interface::MoveGroup::Plan &plan ){
+      moveit::planning_interface::MoveGroup group("left_arm");
+      bool ifsuccess;
+      group.setNumPlanningAttempts(20);
       group.setPlanningTime(1.0);
+      group.setPlannerId("RRTstarkConfigDefault");
       group.setStartState(*group.getCurrentState());
-      pose_average.position.x=x;
-      pose_average.position.y=y;
-      pose_average.position.z=z;
+      if(whichobject==WATER){
+        pose_average = pose_water;
+        target_pose2.position.x=pose_average.position.x;
+        target_pose2.position.z=pose_average.position.z+0.05;
+        target_pose2.position.y=pose_average.position.y+0.18;
+        target_pose2.orientation.x=1;
+        target_pose2.orientation.y=0;
+        target_pose2.orientation.z=0;
+        target_pose2.orientation.w=0;
+      }else{
+        pose_average = pose_coke;
+        target_pose2.position.x=pose_average.position.x;
+        target_pose2.position.z=pose_average.position.z+0.2;
+        target_pose2.position.y=pose_average.position.y;
+        target_pose2.orientation.x=0;
+        target_pose2.orientation.y=-sqrt(2)/2;
+        target_pose2.orientation.z=sqrt(2)/2;
+        target_pose2.orientation.w=0;
+      }
       //target_pose2 = pose_average;
-      target_pose2.position.x=pose_average.position.x;
-      target_pose2.position.z=pose_average.position.z+0.05;
-      target_pose2.position.y=pose_average.position.y-0.15;
-      target_pose2.orientation.x=0;
-      target_pose2.orientation.y=0;
-      target_pose2.orientation.z=0;
-      target_pose2.orientation.w=0;
+      
       //leftwards:(x:0.991776 y:-0.011776 z:0.054329  w:0.115287)  downwards:(0,-sqrt(2)/2,sqrt(2)/2,0) rightwards:(0,0,0,0)
       //decide_target_pose(&target_pose2,1.002963-0.03,-0.0816710-0.03,0.391100,0,0,1,0);
 
       // target_pose2 = target_pose1;
       printf("pose:\nx:%f\ty:%f\tz:%f\n",target_pose2.position.x,target_pose2.position.y,target_pose2.position.z);
       printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose2.orientation.x,target_pose2.orientation.y,target_pose2.orientation.z,target_pose2.orientation.w);
-      group.setPoseTarget(target_pose2);
       ROS_INFO("Begin Planning!");
   
       // Now, we call the planner to compute the plan
        // and visualize it.
      // Note that we are just planning, not asking move_group 
      // to actually move the robot.
-      
-      bool success = group.plan(my_plan);
-
-      ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
-      if(success){
-          enable_arm = RIGHT_ARM;
-          arm = RIGHT_ARM;
-          plan = my_plan;
-          //group.execute(my_plan);
-	  return true;
-      }else{
-        moveit::planning_interface::MoveGroup group("left_arm");
+      int plan_times= 10;
+      for (int i=0;i<plan_times;i++){
         group.setStartState(*group.getCurrentState());
-        target_pose2.position.x=pose_average.position.x;
-      	target_pose2.position.z=pose_average.position.z+0.05;
-      	target_pose2.position.y=pose_average.position.y+0.2;
-      	target_pose2.orientation.x=0.991776;
-        target_pose2.orientation.y=-0.011776;
-        target_pose2.orientation.z=0.054329;
-        target_pose2.orientation.w=0.115287;
-        group.setPoseTarget(target_pose2);
-      ROS_INFO("Begin Planning!");
-      bool success = group.plan(my_plan);
-
-      ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
+        group.setPoseTarget(target_pose2); 
+        bool success = group.plan(my_plan);
+        ifsuccess = success;
+        ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
         if(success){
           enable_arm = LEFT_ARM;
           arm = LEFT_ARM;
           plan = my_plan;
-          //group.execute(my_plan);
-	  return true;        
-         }else{
-          moveit::planning_interface::MoveGroup group("left_arm");
-          group.setStartState(*group.getCurrentState());
-          target_pose2 = pose_average;
-          target_pose2.position.x=pose_average.position.x;
-          target_pose2.position.z=pose_average.position.z+0.2;
-          target_pose2.position.y=pose_average.position.y;
-          target_pose2.orientation.x=0;
-          target_pose2.orientation.y=-sqrt(2)/2;
-          target_pose2.orientation.z=sqrt(2)/2;
-          target_pose2.orientation.w=0;
-          group.setPoseTarget(target_pose2);
-          bool success = group.plan(my_plan);
-          ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
-          if(success){
-            enable_arm = LEFT_ARM;
-            arm = LEFT_ARM;
-            plan = my_plan;
-            //group.execute(my_plan);
-            }else{
-              moveit::planning_interface::MoveGroup group("right_arm");
-              group.setStartState(*group.getCurrentState());
-              target_pose2 = pose_average;
-            target_pose2.position.x=pose_average.position.x;
-            target_pose2.position.z=pose_average.position.z+0.2;
-            target_pose2.position.y=pose_average.position.y;
-            target_pose2.orientation.x=0;
-            target_pose2.orientation.y=-sqrt(2)/2;
-            target_pose2.orientation.z=sqrt(2)/2;
-            target_pose2.orientation.w=0;
-            group.setPoseTarget(target_pose2);
-            bool success = group.plan(my_plan);
-            ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
-            if(success){
-              enable_arm = RIGHT_ARM;
-              arm = RIGHT_ARM;
-              plan = my_plan;
-              //group.execute(my_plan);
-              }else{
-		  return false;
-	        }
-            }
+          break;
          }
-      }
+       }
+      return ifsuccess;
+      
 }
 bool GraspNode::arrive_execute(bool arm,moveit::planning_interface::MoveGroup::Plan plan){
 
   if(arm == LEFT_ARM){
     moveit::planning_interface::MoveGroup group("left_arm");
+    group.setNumPlanningAttempts(20);
+    group.setPlannerId("RRTstarkConfigDefault");
+    group.setPlanningTime(1.0);
     bool success = group.execute(plan);
     if(success){
       //sleep(1.0);
@@ -776,6 +603,75 @@ bool GraspNode::arrive_execute(bool arm,moveit::planning_interface::MoveGroup::P
       //pub_gripper(&left_gripper_signal_pub,gripper_command);
       //sleep(1.0);
       ros::spinOnce();
+      target_pose2.position.y -= 0.05;
+      group.setStartState(*group.getCurrentState());
+      group.setPoseTarget(target_pose2);
+      success = group.plan(my_plan);
+      if(success){
+         sleep(3.0);
+         bool ex = group.execute(my_plan);
+        if(!ex) {
+             printf("execute failed!");
+        }
+       }
+    //ROS_INFO("Press ENTER to grasp.");
+    //getchar();
+
+      gripper_command=75;
+      pub_gripper(&left_gripper_signal_pub,gripper_command); 
+      sleep(2.0);
+
+      target_pose2.position.z += 0.18;
+      target_pose2.position.y += 0.18;
+      target_pose2.position.x -=0.10;
+      
+      moveit_msgs::CollisionObject attached_object;
+      
+      /* The header must contain a valid TF frame*/
+      attached_object.header.frame_id = group.getPlanningFrame();
+      /* The id of the object */
+      attached_object.id = "bottle";
+
+      /* A default pose */
+      geometry_msgs::Pose pose;
+      pose.orientation.w = 1.0;
+      pose.position.x = pose_average.position.x;
+      pose.position.y = pose_average.position.y;
+      pose.position.z =0.375;
+
+      /* Define a box to be attached */
+      shape_msgs::SolidPrimitive primitive;
+      primitive.type = primitive.CYLINDER;
+      primitive.dimensions.resize(3);
+      primitive.dimensions[0] = 0.235;
+      primitive.dimensions[1] = 0.035;
+
+      attached_object.primitives.push_back(primitive);
+      attached_object.primitive_poses.push_back(pose);  
+      attached_object.operation = attached_object.ADD;
+      std::vector<moveit_msgs::CollisionObject> collision_objects;  
+      collision_objects.push_back(attached_object);  
+      planning_scene_interface.addCollisionObjects(collision_objects);
+      moveit_msgs::CollisionObject remove_object;
+      remove_object.id = "cyl2";
+      //remove_object.header.frame_id = "left_gripper_palm_link";
+      remove_object.operation = remove_object.REMOVE;
+
+      ROS_INFO("Attaching the object to the hand and removing it from the world.");
+      group.attachObject(attached_object.id);
+      
+      for(int i=0;i<10;i++){
+      group.setStartState(*group.getCurrentState());
+      group.setPoseTarget(target_pose2);
+      success = group.plan(my_plan);
+      if(success){
+         bool ex = group.execute(my_plan);
+          if(!ex) {
+             printf("execute failed!");
+          }
+          break;
+      }
+      }
       return true;
     }else{
       return false;
@@ -795,262 +691,7 @@ bool GraspNode::arrive_execute(bool arm,moveit::planning_interface::MoveGroup::P
     }
   }
 }
-bool GraspNode::execute(double x,double y,double z){
-      pose_average.position.x=x;
-      pose_average.position.y=y;
-      pose_average.position.z=z;
-      //target_pose2 = pose_average;
-      target_pose2.position.x=pose_average.position.x;
-      target_pose2.position.z=pose_average.position.z+0.25;
-      target_pose2.position.y=pose_average.position.y;
-      target_pose2.orientation.x=0;
-      target_pose2.orientation.y=-sqrt(2)/2;
-      target_pose2.orientation.z=sqrt(2)/2;
-      target_pose2.orientation.w=0;
-      //leftwards:(x:0.991776 y:-0.011776 z:0.054329  w:0.115287)  downwards:(0,-sqrt(2)/2,sqrt(2)/2,0) rightwards:(0,0,0,0)
-      //decide_target_pose(&target_pose2,1.002963-0.03,-0.0816710-0.03,0.391100,0,0,1,0);
 
-      // target_pose2 = target_pose1;
-      printf("pose:\nx:%f\ty:%f\tz:%f\n",target_pose2.position.x,target_pose2.position.y,target_pose2.position.z);
-      printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose2.orientation.x,target_pose2.orientation.y,target_pose2.orientation.z,target_pose2.orientation.w);
-      moveit::planning_interface::MoveGroup group("right_arm");
-      group.setPoseTarget(target_pose2);
-      ROS_INFO("Begin Planning!");
-  
-      // Now, we call the planner to compute the plan
-       // and visualize it.
-     // Note that we are just planning, not asking move_group 
-     // to actually move the robot.
-      
-      bool success = group.plan(my_plan);
-
-      ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
-      if(success){
-          enable_arm = RIGHT_ARM;
-          bool ex = group.execute(my_plan);
-          if(!ex) {
-            power();
-            //continue;
-          }
-      }else{
-        moveit::planning_interface::MoveGroup group("left_arm");
-        target_pose2.position.x=pose_average.position.x;
-      	target_pose2.position.z=pose_average.position.z+0.25;
-      	target_pose2.position.y=pose_average.position.y;
-      	target_pose2.orientation.x=0;
-      	target_pose2.orientation.y=-sqrt(2)/2;
-      	target_pose2.orientation.z=sqrt(2)/2;
-      	target_pose2.orientation.w=0;
-        group.setPoseTarget(target_pose2);
-        ROS_INFO("Begin Planning!");
-        bool success = group.plan(my_plan);
-
-        ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
-        if(success){
-         // while(ros::ok()){
-         //    printf("Plan again or just grasp?(p/g)");
-         //    scanf("%s",&porg);
-         //    if(porg=='g')
-         //      break; 
-         //    else ourplan(&group,target_pose2,&my_plan); 
-          // } 
-          enable_arm = LEFT_ARM;
-          bool ex=group.execute(my_plan);
-          if(!ex) {
-              power();
-              //continue;
-            }          
-         }else{
-          moveit::planning_interface::MoveGroup group("left_arm");
-          target_pose2 = pose_average;
-          target_pose2.position.x=pose_average.position.x;
-          target_pose2.position.z=pose_average.position.z+0.2;
-          target_pose2.position.y=pose_average.position.y;
-          target_pose2.orientation.x=0;
-          target_pose2.orientation.y=-sqrt(2)/2;
-          target_pose2.orientation.z=sqrt(2)/2;
-          target_pose2.orientation.w=0;
-          group.setPoseTarget(target_pose2);
-          bool success = group.plan(my_plan);
-          ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
-          if(success){
-            enable_arm = LEFT_ARM;
-              bool ex=group.execute(my_plan);
-            if(!ex) {
-                power();
-                //continue;
-              }
-            }else{
-              moveit::planning_interface::MoveGroup group("right_arm");
-              target_pose2 = pose_average;
-            target_pose2.position.x=pose_average.position.x;
-            target_pose2.position.z=pose_average.position.z+0.25;
-            target_pose2.position.y=pose_average.position.y;
-            target_pose2.orientation.x=0;
-            target_pose2.orientation.y=-sqrt(2)/2;
-            target_pose2.orientation.z=sqrt(2)/2;
-            target_pose2.orientation.w=0;
-            group.setPoseTarget(target_pose2);
-            bool success = group.plan(my_plan);
-            ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
-            if(success){
-              enable_arm = RIGHT_ARM;
-                bool ex=group.execute(my_plan);
-            if(!ex) return false;
-              }
-            }
-         }
-      }
-      
-      /* Sleep to give Rviz time to visualize the plan. */
-      sleep(2.0);
-      target_pose_temp = target_pose2;
-      gripper_command=75;
-      if(enable_arm==LEFT_ARM)  {
-        pub_gripper(&left_gripper_signal_pub,gripper_command);
-        arm_name = "left_arm";
-      }
-      else  {
-        pub_gripper(&right_gripper_signal_pub,gripper_command);
-        arm_name = "right_arm";
-      }
-      ros::spinOnce();
-      sleep(2.0);
-     // moveit::planning_interface::MoveGroup group(arm_name);
-      group.setPlanningTime(1.0);
-      // printf("Have we grasped the object?(y/n)");
-      // scanf("%s",&haveGrasp);
-      std::vector<std::string> object_ids;
-    object_ids.push_back("cylinder");
-    planning_scene_interface.removeCollisionObjects(object_ids);
-    group.setStartState(*group.getCurrentState());
-    //power();
-    sleep(1.0);
-    vector<double> group_variable_values;
-    if(enable_arm==LEFT_ARM){
-                moveit::planning_interface::MoveGroup group("left_arm");
-		/*target_pose_temp.position.x=0.864536;
-		target_pose_temp.position.y=0.367802;
-		target_pose_temp.position.z=0.945851;
-		target_pose_temp.orientation.x=0.251804;
-		target_pose_temp.orientation.y=0.697385;
-		target_pose_temp.orientation.z=0.593748;
-		target_pose_temp.orientation.w=-0.312589;*/
-		group.setStartState(*group.getCurrentState());
-		group_variable_values.push_back(2.999290);
-		group_variable_values.push_back(-2.236700);
-		group_variable_values.push_back(-0.559131);
-		group_variable_values.push_back(-2.830370);
-		group_variable_values.push_back(-1.319326);
-		group_variable_values.push_back(-1.608036);
-	      ROS_INFO("Start planning picking!");
-	     // group.setPoseTarget(target_pose_temp);
-		group.setJointValueTarget(group_variable_values);
-        }else{
-        	/*target_pose_temp.position.x=0.566997;
-		target_pose_temp.position.y=-0.435485;
-		target_pose_temp.position.z=1.055114;
-		target_pose_temp.orientation.x=0.342295;
-		target_pose_temp.orientation.y=0.593277;
-		target_pose_temp.orientation.z=0.654907;
-		target_pose_temp.orientation.w=-0.319300;*/
-                 moveit::planning_interface::MoveGroup group("right_arm");
-		group.setStartState(*group.getCurrentState());
-		  group_variable_values.push_back(-2.815427);
-		  group_variable_values.push_back(-1.499180);
-		  group_variable_values.push_back(0.997918);
-		  group_variable_values.push_back(0.024248);
-		  group_variable_values.push_back(1.522912);
-		  group_variable_values.push_back(-1.612360);
-		  ROS_INFO("Start planning picking!");
-		  group.setJointValueTarget(group_variable_values);
-        }
-		//group.setRandomTarget();
-		ROS_INFO("Start picking!");
-      	//group.setPoseTarget(target_pose_temp);
-      	bool pick_success = group.plan(my_plan);
-	 
-      	if(pick_success){ 
-      		bool pick_exc=group.execute(my_plan);
-      		if(!pick_exc)
-      		{
-      			power();
-      			group.setStartState(*group.getCurrentState());
-      			group.setJointValueTarget(group_variable_values);
-      			group.plan(my_plan);
-      			group.execute(my_plan);
-      		}
-      	}
-      	sleep(5.0);
-      	gripper_command="o";
-      	if(enable_arm==LEFT_ARM)  pub_gripper(&left_gripper_signal_pub,gripper_command);
-  	  	else  pub_gripper(&right_gripper_signal_pub,gripper_command);
-      	ros::spinOnce();
-      	sleep(5.0);
-	ROS_INFO("Start reseting!");
-	//reset pose 
-	//power();
-	sleep(1.0);
-	group.setStartState(*group.getCurrentState());
-	
-	if(enable_arm==LEFT_ARM){
-		
-		group_variable_values.push_back(0.1412);
-		group_variable_values.push_back(-3.1415);
-		group_variable_values.push_back(2.8238);
-		group_variable_values.push_back(-2.8238);
-		group_variable_values.push_back(-1.612);
-		group_variable_values.push_back(-1.5708);
-		group.setJointValueTarget(group_variable_values);
-		bool hui_success = group.plan(my_plan);
-		ROS_INFO("Visualizing plan 1 (pose goal) %s",hui_success?"SUCCEED":"FAILED");
-	      	if(hui_success){ 
-	      		bool hui_exc=group.execute(my_plan);
-	      		if(!hui_exc)
-	      		{
-	      			power();
-				sleep(0.5);
-				group.setStartState(*group.getCurrentState());
-	      			group.setJointValueTarget(group_variable_values);
-	      			group.plan(my_plan);
-	      			group.execute(my_plan);
-	      		}
-	      	}
-	}else{
-    		group_variable_values.push_back(-0.187947);
-		group_variable_values.push_back(0.070866);
-		group_variable_values.push_back(-2.824250);
-		group_variable_values.push_back(-0.176628);
-		group_variable_values.push_back(1.912136);
-		group_variable_values.push_back(1.465337);
-		group.setJointValueTarget(group_variable_values);
-		bool hui_success = group.plan(my_plan);
-		ROS_INFO("Visualizing plan 1 (pose goal) %s",hui_success?"SUCCEED":"FAILED");
-	      	if(hui_success){ 
-	      		bool hui_exc=group.execute(my_plan);
-	      		if(!hui_exc)
-	      		{
-	      			power();
-				sleep(0.5);
-				group.setStartState(*group.getCurrentState());
-	      			group.setJointValueTarget(group_variable_values);
-	      			group.plan(my_plan);
-	      			group.execute(my_plan);
-	      		}
-	      	}
-        }
-	
-      
-      // printf("Have we place the object?(y/n)");
-     //  scanf("%s",&haveGrasp);
-      
-    object_ids.push_back("box1");
-    object_ids.push_back("box2");
-    planning_scene_interface.removeCollisionObjects(object_ids);
-     // isReceived = false;
-     // ros::shutdown();
-      return true;
-}
 bool GraspNode::pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &plan){
     sleep(2.0);
     
@@ -1063,7 +704,9 @@ bool GraspNode::pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &
     
     if(arm==LEFT_ARM){
       moveit::planning_interface::MoveGroup group("left_arm");
+      group.setNumPlanningAttempts(20);
       group.setPlanningTime(1.0);
+      group.setPlannerId("RRTstarkConfigDefault");
 	 group.setStartState(*group.getCurrentState());
       //target_pose_temp.position.x=0.864536;
       //target_pose_temp.position.y=0.367802;
@@ -1129,6 +772,9 @@ bool GraspNode::pick_execute(bool arm,moveit::planning_interface::MoveGroup::Pla
     sleep(1.0);
     if(arm==LEFT_ARM){
       moveit::planning_interface::MoveGroup group("left_arm");
+      group.setNumPlanningAttempts(20);
+      group.setPlanningTime(1.0);
+      group.setPlannerId("RRTstarkConfigDefault");
       bool success = group.execute(plan);
       if(success){
         //sleep(3.0);
@@ -1144,9 +790,9 @@ bool GraspNode::pick_execute(bool arm,moveit::planning_interface::MoveGroup::Pla
       moveit::planning_interface::MoveGroup group("right_arm");
       bool success = group.execute(plan);
       if(success){
-        //sleep(3.0);
-        //gripper_command="o";
-        //pub_gripper(&right_gripper_signal_pub,gripper_command);
+        sleep(3.0);
+        gripper_command="o";
+        pub_gripper(&right_gripper_signal_pub,gripper_command);
         ros::spinOnce();
         //sleep(3.0);
         return true;
@@ -1160,9 +806,10 @@ bool GraspNode::wave(){
    moveit::planning_interface::MoveGroup group("left_arm");
         group.setPlannerId("RRTstarkConfigDefault");
         group.setPlanningTime(1.0);
+        group.setNumPlanningAttempts(20);
  	moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
 
- 	ros::Publisher display_publisher = node_handle.advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
+ 	//ros::Publisher display_publisher = node_handle.advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 1, true);
 	moveit_msgs::DisplayTrajectory display_trajectory;
 	moveit::planning_interface::MoveGroup::Plan my_plan;
         bool success;
@@ -1188,12 +835,13 @@ bool GraspNode::wave(){
 				ROS_INFO("first exe failed!");
 		}
 
-		ROS_INFO("\nFinish first planning!");
 
 		group_variable_values.clear();
-		group_variable_values.push_back(1.23378980);
-		group_variable_values.push_back(-2.73414451);
-		group_variable_values.push_back(-0.0581005);
+		//group_variable_values.push_back(1.23378980);
+		//group_variable_values.push_back(-2.73414451);
+                group_variable_values.push_back(0.903638);
+                group_variable_values.push_back(-2.22677);
+		group_variable_values.push_back(-0.4581005);
 		//group_variable_values.push_back(-2.5075467);
 		//group_variable_values.push_back(-1.527659);
 		//group_variable_values.push_back(-0.5171774);
@@ -1207,11 +855,22 @@ bool GraspNode::wave(){
 
 		if(success){
 		        bool ex=group.execute(my_plan);
-		        if(!ex)
-		                ROS_INFO("Finish second planning!");
+                                               
 		}
+
 		
 	}
+        return true;
+
+}
+void GraspNode::clear_scene(){
+        std::vector<std::string> object_ids;
+        object_ids.push_back("box1");
+        object_ids.push_back("box2");
+    //object_ids.push_back("wall");
+        object_ids.push_back("bottle");
+        moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
+        planning_scene_interface.removeCollisionObjects(object_ids);
 
 }
 bool GraspNode::reset(){
@@ -1219,22 +878,26 @@ bool GraspNode::reset(){
 	//reset pose 
 	//power();
 	sleep(1.0);
-	
+  
 	vector<double> group_variable_values;
 	if(enable_arm==LEFT_ARM){
 		moveit::planning_interface::MoveGroup group("left_arm");
-    group.setStartState(*group.getCurrentState());
-		group_variable_values.push_back(0.1412);
-		group_variable_values.push_back(-3.1415);
-		group_variable_values.push_back(2.8238);
-		group_variable_values.push_back(-2.8238);
-		group_variable_values.push_back(-1.612);
-		group_variable_values.push_back(-1.5708);
+              group.detachObject("botttle");
+              group.setNumPlanningAttempts(20);
+              group.setPlanningTime(1.0);
+              group.setPlannerId("RRTstarkConfigDefault");
+              group.setStartState(*group.getCurrentState());
+	      group_variable_values.push_back(-0.802153889);
+              group_variable_values.push_back(-1.344944779);
+              group_variable_values.push_back(1.707468509674);
+              group_variable_values.push_back(-3.133113686);
+              group_variable_values.push_back(-0.5110691);
+              group_variable_values.push_back(1.346010);
 		group.setJointValueTarget(group_variable_values);
 		bool hui_success = group.plan(my_plan);
       	      if(hui_success){ 
       		bool hui_exc=group.execute(my_plan);
-      		if(!hui_exc)
+      		/*if(!hui_exc)
       		{
       			power();
 			      sleep(0.5);
@@ -1242,17 +905,18 @@ bool GraspNode::reset(){
       			group.setJointValueTarget(group_variable_values);
       			group.plan(my_plan);
       			group.execute(my_plan);
-      		}
+      		}*/
       	     }
 	}else{
 		    moveit::planning_interface::MoveGroup group("right_arm");
 		    group.setStartState(*group.getCurrentState());
-		    group_variable_values.push_back(-0.187947);
-		group_variable_values.push_back(0.070866);
-		group_variable_values.push_back(-2.824250);
-		group_variable_values.push_back(-0.176628);
-		group_variable_values.push_back(1.912136);
-		group_variable_values.push_back(1.465337);
+		    group_variable_values.push_back(0.76583129);
+                  group_variable_values.push_back(-1.760450188);
+                  group_variable_values.push_back(-1.73966819);
+                  group_variable_values.push_back(0.266070008);
+                  group_variable_values.push_back(0.6783955097);
+                  group_variable_values.push_back(1.57658851);
+
 		group.setJointValueTarget(group_variable_values);
 		bool hui_success = group.plan(my_plan);
       	if(hui_success){ 
@@ -1268,10 +932,12 @@ bool GraspNode::reset(){
       		}
       	}
         }
-std::vector<std::string> object_ids;
-	object_ids.push_back("box1");
+    /*std::vector<std::string> object_ids;
+    object_ids.push_back("box1");
     object_ids.push_back("box2");
-    planning_scene_interface.removeCollisionObjects(object_ids);
+    //object_ids.push_back("wall");
+    object_ids.push_back("bottle");
+    planning_scene_interface.removeCollisionObjects(object_ids);*/
       //lis.isReceived = false;
      // lis.pose_sample.clear();
 	return true;
@@ -1284,7 +950,7 @@ int main(int argc, char **argv){
   char ch;
   bool detect_success,navigation_success,execute_success,plan_success,reset_success;
   moveit::planning_interface::MoveGroup::Plan plan;
-  ros::init(argc, argv, "grasp_demo");
+  ros::init(argc, argv, "grasp_demo2");
   ros::NodeHandle nh;
   pluginListener plis;
   std_msgs::String msg;
@@ -1306,6 +972,7 @@ int main(int argc, char **argv){
   ros::spinOnce();*/
   while(ros::ok()){
     //graspnode.lis.isReceived = false;
+    
     ss.clear();
     ss.str("");
     sleep(1.0);   
@@ -1318,14 +985,41 @@ int main(int argc, char **argv){
        //     ROS_INFO("First step of detection succeed!");
           if(true){
     	      ROS_INFO("Navigation succeed!");	
-    	      if(graspnode.detect(x,y,z)){
-    	      ROS_INFO("Second step of detection succeed!");
-    	      bool success = graspnode.execute(x,y,z);
-    	      if(success){
-    		      ROS_INFO("Excecution succeed!");
-    		    }
-    	      else
-    		      continue;
+    	      if(graspnode.detect()){
+    	         ROS_INFO("Second step of detection succeed!");
+                 //graspnode.wave();
+                 graspnode.reset();
+                 graspnode.pick_water();
+                 bool arrive_plan_success = graspnode.arrive_plan(arm,plan);
+                 if(arrive_plan_success){
+                        sleep(5.0);
+                        bool arrive_execute_success = graspnode.arrive_execute(arm,plan);
+                        if(arrive_execute_success){
+                            bool pick_plan_success =graspnode.pick_plan(arm,plan);
+                            if(pick_plan_success){
+                                 bool pick_execute_success = graspnode.pick_execute(arm,plan);
+                                if(pick_execute_success){
+                                    sleep(5.0);
+                                    graspnode.reset();
+                                }
+                            }
+                        }
+                 }
+                 /*graspnode.detect();
+                 graspnode.pick_coke();
+                 arrive_plan_success = graspnode.arrive_plan(arm,plan);
+                 if(arrive_plan_success){
+                        bool arrive_execute_success = graspnode.arrive_execute(arm,plan);
+                        if(arrive_execute_success){
+                        bool  pick_plan_success =graspnode.pick_plan(arm,plan);
+                            if(pick_plan_success){
+                                 bool pick_execute_success = graspnode.pick_execute(arm,plan);
+                                if(pick_execute_success){
+                                    graspnode.reset();
+                                }
+                            }
+                        }
+                 }*/
     	   }
     	   else
     	     ROS_INFO("Second step of detection failed!");
@@ -1338,11 +1032,12 @@ int main(int argc, char **argv){
          // ROS_INFO("First step of detection failed!"); 
         //  sleep(5.0);
         //}
+        return 0;
         break;
       case DETECT:
 
 
-	detect_success = graspnode.detect(x,y,z);
+	detect_success = graspnode.detect();
 	if(detect_success){
 	  ss<<"Detect succeed!";
 	}else{
@@ -1370,9 +1065,15 @@ int main(int argc, char **argv){
           ROS_INFO("Haven't deteccted objects yet!");
         }
         break;
+      case WATER:
+        graspnode.pick_water();
+        break;
+      case COKE:
+        graspnode.pick_coke();
+        break;
       case ARRIVEPLAN:
           if(true){
-              plan_success = graspnode.arrive_plan(x,y,z,arm,plan);
+              plan_success = graspnode.arrive_plan(arm,plan);
               if(plan_success) {
                 ss << "Plan succeed!";
                 //state = 3;
@@ -1449,7 +1150,7 @@ int main(int argc, char **argv){
         break;
    case WAVE:
         sleep(1.0);
-	graspnode.power();
+	graspnode.wave();
 	ss<<"Wave succeed!";
 	msg.data = ss.str();
         plugin_return_pub.publish(msg);
@@ -1457,6 +1158,16 @@ int main(int argc, char **argv){
         ros::spinOnce();
         plis.mode = 0;
         break;
+    case CLEARSCENE:
+         graspnode.clear_scene();
+        ss<<"Clear scene succeed!";
+        msg.data = ss.str();
+        plugin_return_pub.publish(msg);
+        ROS_INFO("Clear scene plugin return has been published!");
+        ros::spinOnce();
+        plis.mode = 0;
+        break;
+
       default:
         ;
     }

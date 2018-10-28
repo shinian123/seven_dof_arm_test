@@ -1,4 +1,3 @@
-
 #include <moveit/move_group_interface/move_group.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 
@@ -32,19 +31,19 @@
 #define DETECT_MODE 2
 #define NAVIGATION_MODE 3
 #define EXECUTE_MODE 4
-const char AUTO = 1;
-const char DETECT = 2;
-const char NAVIGATION1 = 3;
-const char ARRIVEPLAN = 4;
-const char ARRIVEEXECUTE = 5;
-const char PICKPLAN = 6;
-const char PICKEXECUTE = 7;
-const char PLACEPLAN = 8;
-const char PLACEEXECUTE = 9;
-const char NAVIGATION2 = 10;
-const char RESET = 11;
-const char POWER = 12;
-const char WAVE = 13;
+const char DETECT_WATER = 1;
+const char PLAN_WATER = 2;
+const char GRASP_WATER = 3;
+const char DETECT_COKE= 4; 
+const char PLAN_COKE = 5;
+const char GRASP_COKE = 6;
+const char AUTO = 7;
+const char SUPERVISED = 8;
+const char MANUAL = 9;
+const char WATER = 10;
+const char COKE = 11;
+const char RESET = 12;
+const char WAVE =13;
 
 const std::string laser_topic = "scan";
 const float MIN_TOLERANT_RANGE = 0.2f;
@@ -58,21 +57,23 @@ class Listener{
   int listen_times;
   int current_count;
   bool isReceived;
-  vector<geometry_msgs::Pose> pose_sample;
- geometry_msgs::Pose pose_ans;
+  vector<geometry_msgs::Pose> pose_sample[10];
+  geometry_msgs::Pose pose_ans[10];
+  geometry_msgs::Pose pose_final[2];
+  int max_object_num ;
   void CallBack(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg); 
   geometry_msgs::Pose average_pose(vector<geometry_msgs::Pose> pose1, int count);
   geometry_msgs::Pose add_pose(geometry_msgs::Pose pose1,geometry_msgs::Pose pose2);
-  Listener():listen_times(3),current_count(0),isReceived(false){};
+  Listener():listen_times(3),current_count(0),isReceived(false),max_object_num(2){};
   ~Listener(){};
 };
-class pluginListener
+class speechListener
 {
 public:
 	int mode;
-	void plugin_callback(const std_msgs::String::ConstPtr& msg);
-	pluginListener():mode(0){};
-	~pluginListener(){};
+	void speech_callback(const std_msgs::String::ConstPtr& msg);
+	speechListener():mode(0){};
+	~speechListener(){};
 	
 };
 class laserListener
@@ -95,7 +96,7 @@ class GraspNode{
 	int listen_times;
 	geometry_msgs::Pose target_pose1;
 	bool isReceived;
-	geometry_msgs::Pose pose_average;
+	geometry_msgs::Pose pose_average,pose_water,pose_coke;
 	vector<geometry_msgs::Pose> pose_sample;
 	bool enable_arm;//true---left   false----right
 	void decide_target_pose(geometry_msgs::Pose *target_pose,double pose_x,double pose_y,double pose_z,double orientation_x,double orientation_y,double orientation_z,double orientation_w);
@@ -108,12 +109,14 @@ class GraspNode{
 	void SubCallBack(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg);
 	bool ourplan(moveit::planning_interface::MoveGroup *group,geometry_msgs::Pose target_pose2,moveit::planning_interface::MoveGroup::Plan *my_plan);
 	void pub_gripper(ros::Publisher *pub, std::string str);
+       void pub_speech(ros::Publisher *pub,std::string str);
 	char isBegin;
-  char isGrasp;
-  char porg;
-  char lorr;
-  char haveGrasp;
-  pluginListener plis;
+       char isGrasp;
+      char porg;
+      char lorr;
+      char haveGrasp;
+      char whichobject;
+  speechListener plis;
   laserListener laserlis;
  
   std::string arm_name;
@@ -152,14 +155,16 @@ class GraspNode{
   void power(); 
   void init(); 
   bool navigation();
-  bool detect(double &x,double &y,double &z);
-  bool arrive_plan(double x,double y,double z,bool &arm,moveit::planning_interface::MoveGroup::Plan &plan);
+  bool detect();
+  bool arrive_plan(bool &arm,moveit::planning_interface::MoveGroup::Plan &plan);
   bool arrive_execute(bool arm,moveit::planning_interface::MoveGroup::Plan plan);
   bool pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &plan);
   bool pick_execute(bool arm,moveit::planning_interface::MoveGroup::Plan plan);
-  bool execute(double x,double y,double z);
+  //bool execute(double x,double y,double z);
   bool reset();
   bool wave();
+  void pick_water();
+  void pick_coke();
   int  main(int argc, char **argv);
  
 };
