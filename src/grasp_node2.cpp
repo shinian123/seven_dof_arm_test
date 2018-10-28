@@ -522,7 +522,7 @@ int main(int argc, char **argv)
 	 // Note that we are just planning, not asking move_group 
 	 // to actually move the robot.
 	  group.setPlanningTime(1.0);
-	  int plan_times= 10;
+	  int plan_times= 20;
 	  for (int i=0;i<plan_times;i++){
 	    group.setStartState(*group.getCurrentState());
 	    group.setPoseTarget(target_pose2); 

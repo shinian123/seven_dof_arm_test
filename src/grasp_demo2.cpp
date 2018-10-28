@@ -637,7 +637,7 @@ bool GraspNode::arrive_execute(bool arm,moveit::planning_interface::MoveGroup::P
       pose.orientation.w = 1.0;
       pose.position.x = pose_average.position.x;
       pose.position.y = pose_average.position.y;
-      pose.position.z =0.375;
+      pose.position.z =0.355;
 
       /* Define a box to be attached */
       shape_msgs::SolidPrimitive primitive;
