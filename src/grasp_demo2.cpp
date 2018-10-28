@@ -1150,13 +1150,14 @@ int main(int argc, char **argv){
         break;
    case WAVE:
         sleep(1.0);
-	graspnode.wave();
-	ss<<"Wave succeed!";
+	//graspnode.wave();
+	ss<<"Shutdown succeed!";
 	msg.data = ss.str();
         plugin_return_pub.publish(msg);
-        ROS_INFO("Wave plugin return has been published!");
+        ROS_INFO("Shutdown plugin return has been published!");
         ros::spinOnce();
         plis.mode = 0;
+        return 0;
         break;
     case CLEARSCENE:
          graspnode.clear_scene();
