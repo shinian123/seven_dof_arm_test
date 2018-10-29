@@ -931,12 +931,12 @@ bool GraspNode::reset(){
       		}
       	}
         }
-std::vector<std::string> object_ids;
+   /*std::vector<std::string> object_ids;
 	object_ids.push_back("box1");
     object_ids.push_back("box2");
     //object_ids.push_back("wall");
     object_ids.push_back("bottle");
-    planning_scene_interface.removeCollisionObjects(object_ids);
+    planning_scene_interface.removeCollisionObjects(object_ids);*/
       //lis.isReceived = false;
      // lis.pose_sample.clear();
 	return true;
@@ -979,7 +979,7 @@ int main(int argc, char **argv){
     //printf("Current state: %d\n",state);
     //std::cout<< plis.mode << std::endl;//ROS_INFO(plis.mode);
     switch(speech_lis.mode){
-      case WATER:
+      case GRASP_WATER:
        // if(graspnode.detect(x,y,z)){
        //     ROS_INFO("First step of detection succeed!");
           if(true){	
@@ -1112,12 +1112,6 @@ int main(int argc, char **argv){
           ROS_INFO("Haven't deteccted objects yet!");
         }
         break;*/
-      case GRASP_WATER:
-        graspnode.pick_water();
-        break;
-      case GRASP_COKE:
-        graspnode.pick_coke();
-        break;
      /* case ARRIVEPLAN:
           if(true){
               plan_success = graspnode.arrive_plan(arm,plan);
