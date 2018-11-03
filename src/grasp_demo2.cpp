@@ -577,7 +577,7 @@ bool GraspNode::arrive_plan(){
       for (int i=0;i<plan_times;i++){
         group.setStartState(*group.getCurrentState());
         group.setPoseTarget(target_pose2);
-        group.setGoalTolerance(0.2); 
+        group.setGoalTolerance(0.1); 
         bool success = group.plan(my_plan);
         ifsuccess = success;
         ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
@@ -608,7 +608,7 @@ bool GraspNode::arrive_execute(){
       target_pose2.position.y -= 0.05;
       for(int i=0;i<10;i++){
 	      group.setStartState(*group.getCurrentState());
-	      group.setGoalTolerance(0.01);
+	      group.setGoalTolerance(0.02);
 	      group.setPoseTarget(target_pose2);
 	      success = group.plan(my_plan);
 	      if(success){
@@ -670,6 +670,7 @@ bool GraspNode::arrive_execute(){
       for(int i=0;i<10;i++){
       group.setStartState(*group.getCurrentState());
       group.setPoseTarget(target_pose2);
+      group.setGoalTolerance(0.08);
       success = group.plan(my_plan);
       if(success){
          bool ex = group.execute(my_plan);
