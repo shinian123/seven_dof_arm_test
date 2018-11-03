@@ -732,8 +732,9 @@ bool GraspNode::pick_plan(){
 	group.setJointValueTarget(group_variable_values);
       bool pick_success = group.plan(my_plan);
       if(pick_success){
-        group.execute(my_plan);
-        
+        //group.execute(my_plan);
+        enable_arm = LEFT_ARM;
+        arm = LEFT_ARM;
         return true;
         }else{
         
@@ -763,7 +764,8 @@ bool GraspNode::pick_plan(){
           bool pick_success = group.plan(my_plan);
           if(pick_success){
             //group.execute(my_plan);
-            
+            enable_arm = RIGHT_ARM;
+            arm = RIGHT_ARM;
             return true;
           }else{
             
