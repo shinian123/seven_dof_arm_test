@@ -141,7 +141,7 @@ void Listener::CallBack(const object_recognition_msgs::RecognizedObjectArray::Co
        }
        printf("Water:\npose:\nx:%f\ty:%f\tz:%f\n", pose_final[0].position.x,pose_final[0].position.y,pose_final[0].position.z);
        printf("Coke:\npose:\nx:%f\ty:%f\tz:%f\n", pose_final[1].position.x,pose_final[1].position.y,pose_final[1].position.z);
-  isReceived = true;
+       isReceived = true;
        }
       }
 }
@@ -787,8 +787,8 @@ bool GraspNode::pick_execute(){
       bool success = group.execute(my_plan);
       if(success){
         //sleep(3.0);
-        //gripper_command="o";
-        //pub_gripper(&left_gripper_signal_pub,gripper_command);
+        gripper_command="o";
+        pub_gripper(&left_gripper_signal_pub,gripper_command);
         ros::spinOnce();
         //sleep(3.0);
         return true;

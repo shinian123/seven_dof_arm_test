@@ -112,10 +112,10 @@ void Listener::CallBack(const object_recognition_msgs::RecognizedObjectArray::Co
         //printf("pose:\nx:%f\ty:%f\tz:%f\n",target_pose1.position.x,target_pose1.position.y,target_pose1.position.z);
         //printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w); 
        vector<geometry_msgs::Pose> pose_valid;  
-       for(int i=0;i<max_object_num;i++){        
+       for(int i=0;i<2;i++){        
         pose_ans[i] = average_pose(pose_sample[i], listen_times);
         if(pose_ans[i].position.x<1.0&&pose_ans[i].position.x>0.7&&pose_ans[i].position.y>-0.28&&pose_ans[i].position.y<0.28){
-        //pose_sample.clear();
+        //pose_samp;
         printf("average:\npose:\nx:%f\ty:%f\tz:%f\n", pose_ans[i].position.x,pose_ans[i].position.y,pose_ans[i].position.z);
         //printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",pose_ans.orientation.x,pose_ans.orientation.y,pose_ans.orientation.z,pose_ans.orientation.w);
         //ROS_INFO("STOP!!!");
@@ -787,8 +787,8 @@ bool GraspNode::pick_execute(){
       bool success = group.execute(my_plan);
       if(success){
         //sleep(3.0);
-        //gripper_command="o";
-        //pub_gripper(&left_gripper_signal_pub,gripper_command);
+        gripper_command="o";
+        pub_gripper(&left_gripper_signal_pub,gripper_command);
         ros::spinOnce();
         //sleep(3.0);
         return true;
