@@ -112,7 +112,8 @@ void Listener::CallBack(const object_recognition_msgs::RecognizedObjectArray::Co
         //printf("pose:\nx:%f\ty:%f\tz:%f\n",target_pose1.position.x,target_pose1.position.y,target_pose1.position.z);
         //printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w); 
        vector<geometry_msgs::Pose> pose_valid;  
-       for(int i=0;i<2;i++){        
+       for(int i=0;i<2;i++){
+        printf("%d\n",i);        
         pose_ans[i] = average_pose(pose_sample[i], listen_times);
         if(pose_ans[i].position.x<1.0&&pose_ans[i].position.x>0.7&&pose_ans[i].position.y>-0.28&&pose_ans[i].position.y<0.28){
         //pose_samp;
@@ -605,9 +606,12 @@ bool GraspNode::arrive_execute(){
       //sleep(1.0);
       ros::spinOnce();
       target_pose2.position.y -= 0.05;
-      group.setStartState(*group.getCurrentState());
-      group.setPoseTarget(target_pose2);
-      success = group.plan(my_plan);
+      for(int i=0;i<10;i++){
+	      group.setStartState(*group.getCurrentState());
+	      group.setGoalTolerance(0.01);
+	      group.setPoseTarget(target_pose2);
+	      success = group.plan(my_plan);
+      }
       if(success){
          sleep(3.0);
          bool ex = group.execute(my_plan);
