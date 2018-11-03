@@ -99,7 +99,6 @@ class GraspNode{
 	geometry_msgs::Pose pose_average,pose_water,pose_coke;
 	vector<geometry_msgs::Pose> pose_sample;
 	bool enable_arm;//true---left   false----right
-        bool arm;
 	void decide_target_pose(geometry_msgs::Pose *target_pose,double pose_x,double pose_y,double pose_z,double orientation_x,double orientation_y,double orientation_z,double orientation_w);
 	geometry_msgs::Pose add_pose(geometry_msgs::Pose pose1,geometry_msgs::Pose pose2);
 	

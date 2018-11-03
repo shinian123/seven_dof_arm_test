@@ -606,16 +606,20 @@ bool GraspNode::arrive_execute(){
       //sleep(1.0);
       ros::spinOnce();
       target_pose2.position.y -= 0.05;
-      group.setStartState(*group.getCurrentState());
-      group.setPoseTarget(target_pose2);
-      success = group.plan(my_plan);
-      if(success){
-         sleep(3.0);
-         bool ex = group.execute(my_plan);
-        if(!ex) {
-             printf("execute failed!");
-        }
-       }
+      for(int i=0;i<10;i++){
+	      group.setStartState(*group.getCurrentState());
+	      group.setGoalTolerance(0.01);
+	      group.setPoseTarget(target_pose2);
+	      success = group.plan(my_plan);
+	      if(success){
+		 sleep(3.0);
+		 bool ex = group.execute(my_plan);
+		 if(!ex) {
+		     printf("execute failed!");
+		}
+             }
+      }
+      
     //ROS_INFO("Press ENTER to grasp.");
     //getchar();
 

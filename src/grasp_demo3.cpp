@@ -112,7 +112,7 @@ void Listener::CallBack(const object_recognition_msgs::RecognizedObjectArray::Co
         //printf("pose:\nx:%f\ty:%f\tz:%f\n",target_pose1.position.x,target_pose1.position.y,target_pose1.position.z);
         //printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w); 
        vector<geometry_msgs::Pose> pose_valid;  
-       for(int i=0;i<max_object_num;i++){        
+       for(int i=0;i<2;i++){        
         pose_ans[i] = average_pose(pose_sample[i], listen_times);
         if(pose_ans[i].position.x<1.0&&pose_ans[i].position.x>0.5&&pose_ans[i].position.y>-0.28&&pose_ans[i].position.y<0.28){
         //pose_sample.clear();
@@ -542,7 +542,7 @@ bool GraspNode::navigation(){
 
 }
 
-bool GraspNode::arrive_plan(bool &arm,moveit::planning_interface::MoveGroup::Plan &plan ){
+bool GraspNode::arrive_plan(){
       moveit::planning_interface::MoveGroup group("left_arm");
       bool ifsuccess;
       group.setNumPlanningAttempts(20);
@@ -582,31 +582,32 @@ bool GraspNode::arrive_plan(bool &arm,moveit::planning_interface::MoveGroup::Pla
        // and visualize it.
      // Note that we are just planning, not asking move_group 
      // to actually move the robot.
-      int plan_times= 220;
+      int plan_times= 10;
       for (int i=0;i<plan_times;i++){
         group.setStartState(*group.getCurrentState());
-        group.setPoseTarget(target_pose2); 
+        group.setPoseTarget(target_pose2);
+        group.setGoalTolerance(0.2); 
         bool success = group.plan(my_plan);
         ifsuccess = success;
         ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
         if(success){
           enable_arm = LEFT_ARM;
           arm = LEFT_ARM;
-          plan = my_plan;
           break;
          }
        }
+      
       return ifsuccess;
       
 }
-bool GraspNode::arrive_execute(bool arm,moveit::planning_interface::MoveGroup::Plan plan){
+bool GraspNode::arrive_execute(){
 
   if(arm == LEFT_ARM){
     moveit::planning_interface::MoveGroup group("left_arm");
     group.setNumPlanningAttempts(20);
     group.setPlannerId("RRTstarkConfigDefault");
     group.setPlanningTime(1.0);
-    bool success = group.execute(plan);
+    bool success = group.execute(my_plan);
     if(success){
       //sleep(1.0);
       //gripper_command=75;
@@ -614,16 +615,21 @@ bool GraspNode::arrive_execute(bool arm,moveit::planning_interface::MoveGroup::P
       //sleep(1.0);
       ros::spinOnce();
       target_pose2.position.y -= 0.05;
-      group.setStartState(*group.getCurrentState());
-      group.setPoseTarget(target_pose2);
-      success = group.plan(my_plan);
-      if(success){
-         sleep(3.0);
-         bool ex = group.execute(my_plan);
-        if(!ex) {
-             printf("execute failed!");
-        }
-       }
+      for(int i=0;i<10;i++){
+	      group.setStartState(*group.getCurrentState());
+	      group.setGoalTolerance(0.01);
+	      group.setPoseTarget(target_pose2);
+	      success = group.plan(my_plan);
+	      if(success){
+		 sleep(3.0);
+		 bool ex = group.execute(my_plan);
+		 if(!ex) {
+		     printf("execute failed!");
+		}
+		break;
+             }
+      }
+      
     //ROS_INFO("Press ENTER to grasp.");
     //getchar();
 
@@ -631,9 +637,9 @@ bool GraspNode::arrive_execute(bool arm,moveit::planning_interface::MoveGroup::P
       pub_gripper(&left_gripper_signal_pub,gripper_command); 
       sleep(2.0);
 
-      target_pose2.position.z += 0.15;
-      target_pose2.position.y += 0.14;
-      target_pose2.position.x -=0.09;
+      target_pose2.position.z += 0.18;
+      target_pose2.position.y += 0.18;
+      target_pose2.position.x -=0.10;
       
       moveit_msgs::CollisionObject attached_object;
       
@@ -647,13 +653,13 @@ bool GraspNode::arrive_execute(bool arm,moveit::planning_interface::MoveGroup::P
       pose.orientation.w = 1.0;
       pose.position.x = pose_average.position.x;
       pose.position.y = pose_average.position.y;
-      pose.position.z =0.325;
+      pose.position.z =0.355;
 
       /* Define a box to be attached */
       shape_msgs::SolidPrimitive primitive;
       primitive.type = primitive.CYLINDER;
       primitive.dimensions.resize(3);
-      primitive.dimensions[0] = 0.255;
+      primitive.dimensions[0] = 0.235;
       primitive.dimensions[1] = 0.035;
 
       attached_object.primitives.push_back(primitive);
@@ -677,33 +683,36 @@ bool GraspNode::arrive_execute(bool arm,moveit::planning_interface::MoveGroup::P
       if(success){
          bool ex = group.execute(my_plan);
           if(!ex) {
-           printf("execute failed!");
+             printf("execute failed!");
           }
           break;
       }
       }
-
+      
       return true;
     }else{
+      
       return false;
     }
   }else{
     moveit::planning_interface::MoveGroup group("right_arm");
-    bool success = group.execute(plan);
+    bool success = group.execute(my_plan);
     if(success){
       //sleep(1.0);
       //gripper_command=75;
       //pub_gripper(&right_gripper_signal_pub,gripper_command);
       //sleep(1.0);
       ros::spinOnce();
+      
       return true;
     }else{
+      
       return false;
     }
   }
 }
 
-bool GraspNode::pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &plan){
+bool GraspNode::pick_plan(){
     sleep(2.0);
     
    
@@ -738,10 +747,12 @@ bool GraspNode::pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &
 	group.setJointValueTarget(group_variable_values);
       bool pick_success = group.plan(my_plan);
       if(pick_success){
-        plan =my_plan;
         //group.execute(my_plan);
+        enable_arm = LEFT_ARM;
+        arm = LEFT_ARM;
         return true;
         }else{
+        
         return false;
         }
      }else{
@@ -767,10 +778,12 @@ bool GraspNode::pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &
           //group.setPoseTarget(target_pose_temp);
           bool pick_success = group.plan(my_plan);
           if(pick_success){
-            plan =my_plan;
             //group.execute(my_plan);
+            enable_arm = RIGHT_ARM;
+            arm = RIGHT_ARM;
             return true;
           }else{
+            
             return false;
           }
         }
@@ -778,7 +791,7 @@ bool GraspNode::pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &
     
    
 }
-bool GraspNode::pick_execute(bool arm,moveit::planning_interface::MoveGroup::Plan plan){
+bool GraspNode::pick_execute(){
     //power();
     sleep(1.0);
     if(arm==LEFT_ARM){
@@ -786,11 +799,11 @@ bool GraspNode::pick_execute(bool arm,moveit::planning_interface::MoveGroup::Pla
       group.setNumPlanningAttempts(20);
       group.setPlanningTime(1.0);
       group.setPlannerId("RRTstarkConfigDefault");
-      bool success = group.execute(plan);
+      bool success = group.execute(my_plan);
       if(success){
         //sleep(3.0);
-        //gripper_command="o";
-        //pub_gripper(&left_gripper_signal_pub,gripper_command);
+        gripper_command="o";
+        pub_gripper(&left_gripper_signal_pub,gripper_command);
         ros::spinOnce();
         //sleep(3.0);
         return true;
@@ -799,7 +812,7 @@ bool GraspNode::pick_execute(bool arm,moveit::planning_interface::MoveGroup::Pla
       }
     }else{
       moveit::planning_interface::MoveGroup group("right_arm");
-      bool success = group.execute(plan);
+      bool success = group.execute(my_plan);
       if(success){
         sleep(3.0);
         gripper_command="o";
@@ -990,15 +1003,15 @@ int main(int argc, char **argv){
                  pub_speech(&speech_signal_pub,"yes");
                  graspnode.reset();
                  graspnode.pick_water();
-                 bool arrive_plan_success = graspnode.arrive_plan(arm,plan);
+                 bool arrive_plan_success = graspnode.arrive_plan();
                  if(arrive_plan_success){
                         pub_speech(&speech_signal_pub,"yes");
                         sleep(5.0);
-                        bool arrive_execute_success = graspnode.arrive_execute(arm,plan);
+                        bool arrive_execute_success = graspnode.arrive_execute();
                         if(arrive_execute_success){
-                            bool pick_plan_success =graspnode.pick_plan(arm,plan);
+                            bool pick_plan_success =graspnode.pick_plan();
                             if(pick_plan_success){
-                                 bool pick_execute_success = graspnode.pick_execute(arm,plan);
+                                 bool pick_execute_success = graspnode.pick_execute();
                                 if(pick_execute_success){
                                     sleep(5.0);
                                     pub_speech(&speech_signal_pub,"yes");
@@ -1041,16 +1054,16 @@ int main(int argc, char **argv){
                ROS_INFO("Detection succeed!");
                  graspnode.reset();
                  graspnode.pick_coke();
-                 bool arrive_plan_success = graspnode.arrive_plan(arm,plan);
+                 bool arrive_plan_success = graspnode.arrive_plan();
                  if(arrive_plan_success){
                         sleep(5.0);
-                        bool arrive_execute_success = graspnode.arrive_execute(arm,plan);
+                        bool arrive_execute_success = graspnode.arrive_execute();
                         if(arrive_execute_success){
                             pub_speech(&speech_signal_pub,"yes");
-                            bool pick_plan_success =graspnode.pick_plan(arm,plan);
+                            bool pick_plan_success =graspnode.pick_plan();
                             if(pick_plan_success){
                                  pub_speech(&speech_signal_pub,"yes");
-                                 bool pick_execute_success = graspnode.pick_execute(arm,plan);
+                                 bool pick_execute_success = graspnode.pick_execute();
                                 if(pick_execute_success){
                                     sleep(5.0);
                                     //graspnode.reset();

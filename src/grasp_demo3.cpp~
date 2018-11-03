@@ -34,7 +34,7 @@
 
 /* Author: Sachin Chitta */
 
-#include "grasp_demo2.h"
+#include "grasp_demo3.h"
 
 geometry_msgs::Pose Listener::add_pose(geometry_msgs::Pose pose1,geometry_msgs::Pose pose2){
 
@@ -112,11 +112,10 @@ void Listener::CallBack(const object_recognition_msgs::RecognizedObjectArray::Co
         //printf("pose:\nx:%f\ty:%f\tz:%f\n",target_pose1.position.x,target_pose1.position.y,target_pose1.position.z);
         //printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w); 
        vector<geometry_msgs::Pose> pose_valid;  
-       for(int i=0;i<2;i++){
-        printf("%d\n",i);        
+       for(int i=0;i<2;i++){        
         pose_ans[i] = average_pose(pose_sample[i], listen_times);
-        if(pose_ans[i].position.x<1.0&&pose_ans[i].position.x>0.7&&pose_ans[i].position.y>-0.28&&pose_ans[i].position.y<0.28){
-        //pose_samp;
+        if(pose_ans[i].position.x<1.0&&pose_ans[i].position.x>0.5&&pose_ans[i].position.y>-0.28&&pose_ans[i].position.y<0.28){
+        //pose_sample.clear();
         printf("average:\npose:\nx:%f\ty:%f\tz:%f\n", pose_ans[i].position.x,pose_ans[i].position.y,pose_ans[i].position.z);
         //printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",pose_ans.orientation.x,pose_ans.orientation.y,pose_ans.orientation.z,pose_ans.orientation.w);
         //ROS_INFO("STOP!!!");
@@ -146,24 +145,23 @@ void Listener::CallBack(const object_recognition_msgs::RecognizedObjectArray::Co
        }
       }
 }
-void pluginListener::plugin_callback(const std_msgs::String::ConstPtr& msg){
+void speechListener::speech_callback(const std_msgs::String::ConstPtr& msg){
      std::string rec = msg->data;
      ROS_INFO("I heard %s!", rec.c_str());
-     if(rec=="AUTO") mode = AUTO; 
-     if(rec=="DETECT") mode = DETECT; 
-     if(rec=="NAVIGATION1")  mode = NAVIGATION1;
-     if(rec=="ARRIVEPLAN") mode = ARRIVEPLAN; 
-     if(rec=="ARRIVEEXECUTE") mode = ARRIVEEXECUTE;
-     if(rec=="PICKPLAN") mode = PICKPLAN; 
-     if(rec=="PICKEXECUTE") mode = PICKEXECUTE;
-     if(rec=="PLACEPLAN") mode = PLACEPLAN; 
-     if(rec=="PLACEEXECUTE") mode = PLACEEXECUTE;
-     if(rec=="WATER")  mode = WATER;
-     if(rec=="COKE")  mode = COKE;
-     if(rec=="RESET") mode = RESET;
-     if(rec=="POWER") mode = POWER;
-     if(rec=="WAVE") mode = WAVE;
-     if(rec=="CLEAR_SCENE") mode =CLEARSCENE;   
+     if(rec=="begin_detect_water") mode = DETECT_WATER; 
+     if(rec=="begin_plan_water") mode = PLAN_WATER; 
+     if(rec=="begin_grasp_water")  mode = GRASP_WATER;
+     if(rec=="begin_detect_coke") mode = DETECT_WATER; 
+     if(rec=="begin_plan_coke") mode = PLAN_WATER; 
+     if(rec=="begin_grasp_coke")  mode = GRASP_WATER;
+     if(rec=="auto") mode = AUTO;
+     if(rec=="supervised") mode = SUPERVISED; 
+     if(rec=="manual") mode = MANUAL;
+     if(rec=="a_water")  mode =WATER;
+     if(rec=="a_coke")  mode = COKE;
+     if(rec=="reset") mode = RESET;
+     if(rec=="wave_hands") mode =WAVE;
+      
 }
 
 void laserListener::CallBack_laserscan(const sensor_msgs::LaserScan &msg){
@@ -266,6 +264,16 @@ void GraspNode::pub_gripper(ros::Publisher *pub, std::string str){
     pub->publish(msg);
   ROS_INFO("gripper signal has been published!");
 }
+
+void pub_speech(ros::Publisher *pub, std::string str){
+
+  std_msgs::String msg;
+  std::stringstream ss;
+    ss << str;
+    msg.data = ss.str();
+    pub->publish(msg);
+  ROS_INFO("speech signal has been published!");
+}
 void GraspNode::init(){
   isBegin='a';
   isGrasp='b';
@@ -276,12 +284,13 @@ void GraspNode::init(){
   std::string gripper_command="a";
   spinner.start();
   
-  stop_ork_signal_pub = nh.advertise<std_msgs::String>("stop_ork_signal",1000);
-  start_ork_pub = nh.advertise<std_msgs::String>("start_ork_signal",1000);
-  left_gripper_signal_pub = nh.advertise<std_msgs::String>("left_gripper_signal", 1000);
-  right_gripper_signal_pub = nh.advertise<std_msgs::String>("right_gripper_signal", 1000);
-  display_publisher = nh.advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 100, true);
+  stop_ork_signal_pub = nh.advertise<std_msgs::String>("stop_ork_signal",10);
+  start_ork_pub = nh.advertise<std_msgs::String>("start_ork_signal",10);
+  left_gripper_signal_pub = nh.advertise<std_msgs::String>("left_gripper_signal", 10);
+  right_gripper_signal_pub = nh.advertise<std_msgs::String>("right_gripper_signal", 10);
+  display_publisher = nh.advertise<moveit_msgs::DisplayTrajectory>("/move_group/display_planned_path", 10, true);
   navigation_goal_publisher = nh.advertise <geometry_msgs::PoseStamped>("/move_base_simple/goal", 1, true);
+
   laserlis.navigation_pub = nh.advertise<geometry_msgs::Twist>("/bulldog_velocity_controller/cmd_vel", 100);
 
   laser_sub = nh.subscribe("scan", 1000, &laserListener::CallBack_laserscan,&laserlis);
@@ -348,7 +357,7 @@ bool GraspNode::detect(){
       shape_msgs::SolidPrimitive primitive;
       primitive.type = primitive.CYLINDER;
       primitive.dimensions.resize(3);
-      primitive.dimensions[0] = 0.235;
+      primitive.dimensions[0] = 0.325;
       primitive.dimensions[1] = 0.035;
   //    primitive.dimensions[2] = 0.2;
 
@@ -856,7 +865,7 @@ bool GraspNode::wave(){
 		//group_variable_values.push_back(-2.73414451);
                 group_variable_values.push_back(0.903638);
                 group_variable_values.push_back(-2.22677);
-		group_variable_values.push_back(-0.4581005);
+		group_variable_values.push_back(-0.0581005);
 		//group_variable_values.push_back(-2.5075467);
 		//group_variable_values.push_back(-1.527659);
 		//group_variable_values.push_back(-0.5171774);
@@ -876,16 +885,6 @@ bool GraspNode::wave(){
 		
 	}
         return true;
-
-}
-void GraspNode::clear_scene(){
-        std::vector<std::string> object_ids;
-        object_ids.push_back("box1");
-        object_ids.push_back("box2");
-    //object_ids.push_back("wall");
-        object_ids.push_back("bottle");
-        moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
-        planning_scene_interface.removeCollisionObjects(object_ids);
 
 }
 bool GraspNode::reset(){
@@ -947,12 +946,12 @@ bool GraspNode::reset(){
       		}
       	}
         }
-    /*std::vector<std::string> object_ids;
-    object_ids.push_back("box1");
-    object_ids.push_back("box2");
+//std::vector<std::string> object_ids;
+	//object_ids.push_back("box1");
+    //object_ids.push_back("box2");
     //object_ids.push_back("wall");
-    object_ids.push_back("bottle");
-    planning_scene_interface.removeCollisionObjects(object_ids);*/
+    //object_ids.push_back("bottle");
+    //planning_scene_interface.removeCollisionObjects(object_ids);
       //lis.isReceived = false;
      // lis.pose_sample.clear();
 	return true;
@@ -965,14 +964,15 @@ int main(int argc, char **argv){
   char ch;
   bool detect_success,navigation_success,execute_success,plan_success,reset_success;
   moveit::planning_interface::MoveGroup::Plan plan;
-  ros::init(argc, argv, "grasp_demo2");
+  ros::init(argc, argv, "grasp_speech_demo");
   ros::NodeHandle nh;
-  pluginListener plis;
+  speechListener speech_lis;
   std_msgs::String msg;
   stringstream ss;
-  ros::Publisher plugin_return_pub = nh.advertise<std_msgs::String>("plugin_return",1000);
   ros::Publisher start_ork_pub = nh.advertise<std_msgs::String>("start_ork_signal",1000);
-  ros::Subscriber plugin_command_sub = nh.subscribe("plugin_command",1000,&pluginListener::plugin_callback,&plis);
+  ros::Publisher speech_signal_pub = nh.advertise<std_msgs::String>("exe_result",10);
+
+  ros::Subscriber speech_sub=nh.subscribe("Rog_result", 10, &speechListener::speech_callback,&speech_lis);
   if(!ros::ok())
   {
     ROS_INFO("ros::ok failed!");
@@ -987,29 +987,25 @@ int main(int argc, char **argv){
   ros::spinOnce();*/
   while(ros::ok()){
     //graspnode.lis.isReceived = false;
-    //printf("exit?y/n\n");
-    
-    //int ch = getchar();
-    //if(ch=='y') return 0;
     ss.clear();
     ss.str("");
     sleep(1.0);   
     
     //printf("Current state: %d\n",state);
     //std::cout<< plis.mode << std::endl;//ROS_INFO(plis.mode);
-    switch(plis.mode){
-      case AUTO:
+    switch(speech_lis.mode){
+      case WATER:
        // if(graspnode.detect(x,y,z)){
        //     ROS_INFO("First step of detection succeed!");
-          if(true){
-    	      ROS_INFO("Navigation succeed!");	
+          if(true){	
     	      if(graspnode.detect()){
-    	         ROS_INFO("Second step of detection succeed!");
-                 //graspnode.wave();
+    	         ROS_INFO("Detection succeed!");
+                 pub_speech(&speech_signal_pub,"yes");
                  graspnode.reset();
                  graspnode.pick_water();
                  bool arrive_plan_success = graspnode.arrive_plan();
                  if(arrive_plan_success){
+                        pub_speech(&speech_signal_pub,"yes");
                         sleep(5.0);
                         bool arrive_execute_success = graspnode.arrive_execute();
                         if(arrive_execute_success){
@@ -1018,26 +1014,24 @@ int main(int argc, char **argv){
                                  bool pick_execute_success = graspnode.pick_execute();
                                 if(pick_execute_success){
                                     sleep(5.0);
-                                    graspnode.reset();
+                                    pub_speech(&speech_signal_pub,"yes");
+                                }else{
+                                  pub_speech(&speech_signal_pub,"no");
+                                  return 0;
+                                  break;
                                 }
+                            }else{
+                              pub_speech(&speech_signal_pub,"no");
+                              break;
                             }
+                        }else{
+                            pub_speech(&speech_signal_pub,"no");
+                            break;
                         }
+                 }else {
+                   pub_speech(&speech_signal_pub,"no");
+                   break;
                  }
-                 /*graspnode.detect();
-                 graspnode.pick_coke();
-                 arrive_plan_success = graspnode.arrive_plan(arm,plan);
-                 if(arrive_plan_success){
-                        bool arrive_execute_success = graspnode.arrive_execute(arm,plan);
-                        if(arrive_execute_success){
-                        bool  pick_plan_success =graspnode.pick_plan(arm,plan);
-                            if(pick_plan_success){
-                                 bool pick_execute_success = graspnode.pick_execute(arm,plan);
-                                if(pick_execute_success){
-                                    graspnode.reset();
-                                }
-                            }
-                        }
-                 }*/
     	   }
     	   else
     	     ROS_INFO("Second step of detection failed!");
@@ -1052,7 +1046,59 @@ int main(int argc, char **argv){
         //}
         return 0;
         break;
-      case DETECT:
+      case COKE:
+       // if(graspnode.detect(x,y,z)){
+       //     ROS_INFO("First step of detection succeed!");
+          if(true){ 
+            if(true){
+               ROS_INFO("Detection succeed!");
+                 graspnode.reset();
+                 graspnode.pick_coke();
+                 bool arrive_plan_success = graspnode.arrive_plan(arm,plan);
+                 if(arrive_plan_success){
+                        sleep(5.0);
+                        bool arrive_execute_success = graspnode.arrive_execute(arm,plan);
+                        if(arrive_execute_success){
+                            pub_speech(&speech_signal_pub,"yes");
+                            bool pick_plan_success =graspnode.pick_plan(arm,plan);
+                            if(pick_plan_success){
+                                 pub_speech(&speech_signal_pub,"yes");
+                                 bool pick_execute_success = graspnode.pick_execute(arm,plan);
+                                if(pick_execute_success){
+                                    sleep(5.0);
+                                    //graspnode.reset();
+                                    pub_speech(&speech_signal_pub,"yes");
+                                }else{
+                                  pub_speech(&speech_signal_pub,"no");
+                                  break;
+                                }
+                            }else{
+                              pub_speech(&speech_signal_pub,"no");
+                              break;
+                            }
+                        }else{
+                            pub_speech(&speech_signal_pub,"no");
+                            break;
+                        }
+                 }else {
+                   pub_speech(&speech_signal_pub,"no");
+                   break;
+                 }
+         }
+         else
+           ROS_INFO("Second step of detection failed!");
+           }
+           else
+           ROS_INFO("Navigation failed!");
+        //}
+        //else 
+        //{
+         // ROS_INFO("First step of detection failed!"); 
+        //  sleep(5.0);
+        //}
+        return 0;
+        break;  
+      /*case DETECT:
 
 
 	detect_success = graspnode.detect();
@@ -1082,16 +1128,16 @@ int main(int argc, char **argv){
         }else{
           ROS_INFO("Haven't deteccted objects yet!");
         }
-        break;
-      case WATER:
+        break;*/
+      case GRASP_WATER:
         graspnode.pick_water();
         break;
-      case COKE:
+      case GRASP_COKE:
         graspnode.pick_coke();
         break;
-      case ARRIVEPLAN:
+     /* case ARRIVEPLAN:
           if(true){
-              plan_success = graspnode.arrive_plan();
+              plan_success = graspnode.arrive_plan(arm,plan);
               if(plan_success) {
                 ss << "Plan succeed!";
                 //state = 3;
@@ -1104,8 +1150,8 @@ int main(int argc, char **argv){
               plis.mode = 0;
           }
           break;
-      case ARRIVEEXECUTE:
-          execute_success = graspnode.arrive_execute();
+      case :
+          execute_success = graspnode.arrive_execute(arm,plan);
           if(execute_success) {
             ss << "Execute succeed!";
           }
@@ -1117,7 +1163,7 @@ int main(int argc, char **argv){
 	  plis.mode = 0;
         break;
    case PICKPLAN:
-          plan_success = graspnode.pick_plan();
+          plan_success = graspnode.pick_plan(arm,plan);
           if(execute_success) {
             ss << "Plan succeed!";
             //state = 5;
@@ -1130,7 +1176,7 @@ int main(int argc, char **argv){
           plis.mode = 0;
         break;
    case PICKEXECUTE:
-          execute_success = graspnode.pick_execute();
+          execute_success = graspnode.pick_execute(arm,plan);
           if(execute_success) {
             ss << "Execute succeed!";
             state = 1;
@@ -1141,22 +1187,22 @@ int main(int argc, char **argv){
           ROS_INFO("Execute plugin return has been published!");
           ros::spinOnce();
            plis.mode = 0;
-        break;
+        break;*/
 	 case RESET:
           reset_success = graspnode.reset();
-          if(reset_success) ss << "Reset succeed!";
-          else ss << "Reset failed!";
-          msg.data = ss.str();
-          plugin_return_pub.publish(msg);
+          if(reset_success) pub_speech(&speech_signal_pub,"yes");
+          else pub_speech(&speech_signal_pub,"no");
+          //msg.data = ss.str();
+          //plugin_return_pub.publish(msg);
           ROS_INFO("Reset plugin return has been published!");
           ros::spinOnce();
-	  plis.mode = 0;
+	  //plis.mode = 0;
 	  //printf("Exit?(y/n)\n");
 	  //  ch =getchar();
 	  //  if(ch=='y'||ch=='Y') {return 0;}
 	  //  else{;}
         break;
-   case POWER:
+   /*case POWER:
 	sleep(1.0);
 	graspnode.power();
 	ss<<"Power succeed!";
@@ -1165,28 +1211,18 @@ int main(int argc, char **argv){
         ROS_INFO("Power plugin return has been published!");
         ros::spinOnce();
         plis.mode = 0;
-        break;
+        break;*/
    case WAVE:
         sleep(1.0);
-	//graspnode.wave();
-	ss<<"Shutdown succeed!";
-	msg.data = ss.str();
-        plugin_return_pub.publish(msg);
-        ROS_INFO("Shutdown plugin return has been published!");
+        //aspnode.wave();
+        pub_speech(&speech_signal_pub,"yes");
+	//ss<<"Wave succeed!";
+	//msg.data = ss.str();
+        //plugin_return_pub.publish(msg);
+        ROS_INFO("Wave plugin return has been published!");
         ros::spinOnce();
-        plis.mode = 0;
-        return 0;
+        //plis.mode = 0;
         break;
-    case CLEARSCENE:
-         graspnode.clear_scene();
-        ss<<"Clear scene succeed!";
-        msg.data = ss.str();
-        plugin_return_pub.publish(msg);
-        ROS_INFO("Clear scene plugin return has been published!");
-        ros::spinOnce();
-        plis.mode = 0;
-        break;
-
       default:
         ;
     }
