@@ -732,7 +732,7 @@ bool GraspNode::pick_plan(){
 	group.setJointValueTarget(group_variable_values);
       bool pick_success = group.plan(my_plan);
       if(pick_success){
-        //group.execute(my_plan);
+        group.execute(my_plan);
         
         return true;
         }else{

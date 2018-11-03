@@ -586,7 +586,7 @@ bool GraspNode::arrive_plan(){
           break;
          }
        }
-      delete group;
+      
       return ifsuccess;
       
 }
@@ -673,10 +673,10 @@ bool GraspNode::arrive_execute(){
           break;
       }
       }
-      delete group;
+      
       return true;
     }else{
-      delete group;
+      
       return false;
     }
   }else{
@@ -688,10 +688,10 @@ bool GraspNode::arrive_execute(){
       //pub_gripper(&right_gripper_signal_pub,gripper_command);
       //sleep(1.0);
       ros::spinOnce();
-      delete group;
+      
       return true;
     }else{
-      delete group;
+      
       return false;
     }
   }
@@ -733,10 +733,10 @@ bool GraspNode::pick_plan(){
       bool pick_success = group.plan(my_plan);
       if(pick_success){
         //group.execute(my_plan);
-        delete group;
+        
         return true;
         }else{
-        delete group;
+        
         return false;
         }
      }else{
@@ -763,10 +763,10 @@ bool GraspNode::pick_plan(){
           bool pick_success = group.plan(my_plan);
           if(pick_success){
             //group.execute(my_plan);
-            delete group;
+            
             return true;
           }else{
-            delete group;
+            
             return false;
           }
         }
