@@ -532,7 +532,7 @@ bool GraspNode::navigation(){
 
 }
 
-bool GraspNode::arrive_plan(bool &arm,moveit::planning_interface::MoveGroup::Plan &plan ){
+bool GraspNode::arrive_plan(){
       moveit::planning_interface::MoveGroup group("left_arm");
       bool ifsuccess;
       group.setNumPlanningAttempts(20);
@@ -583,21 +583,21 @@ bool GraspNode::arrive_plan(bool &arm,moveit::planning_interface::MoveGroup::Pla
         if(success){
           enable_arm = LEFT_ARM;
           arm = LEFT_ARM;
-          plan = my_plan;
           break;
          }
        }
+      
       return ifsuccess;
       
 }
-bool GraspNode::arrive_execute(bool arm,moveit::planning_interface::MoveGroup::Plan plan){
+bool GraspNode::arrive_execute(){
 
   if(arm == LEFT_ARM){
     moveit::planning_interface::MoveGroup group("left_arm");
     group.setNumPlanningAttempts(20);
     group.setPlannerId("RRTstarkConfigDefault");
     group.setPlanningTime(1.0);
-    bool success = group.execute(plan);
+    bool success = group.execute(my_plan);
     if(success){
       //sleep(1.0);
       //gripper_command=75;
@@ -673,27 +673,31 @@ bool GraspNode::arrive_execute(bool arm,moveit::planning_interface::MoveGroup::P
           break;
       }
       }
+      
       return true;
     }else{
+      
       return false;
     }
   }else{
     moveit::planning_interface::MoveGroup group("right_arm");
-    bool success = group.execute(plan);
+    bool success = group.execute(my_plan);
     if(success){
       //sleep(1.0);
       //gripper_command=75;
       //pub_gripper(&right_gripper_signal_pub,gripper_command);
       //sleep(1.0);
       ros::spinOnce();
+      
       return true;
     }else{
+      
       return false;
     }
   }
 }
 
-bool GraspNode::pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &plan){
+bool GraspNode::pick_plan(){
     sleep(2.0);
     
    
@@ -728,10 +732,11 @@ bool GraspNode::pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &
 	group.setJointValueTarget(group_variable_values);
       bool pick_success = group.plan(my_plan);
       if(pick_success){
-        plan =my_plan;
         //group.execute(my_plan);
+        
         return true;
         }else{
+        
         return false;
         }
      }else{
@@ -757,10 +762,11 @@ bool GraspNode::pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &
           //group.setPoseTarget(target_pose_temp);
           bool pick_success = group.plan(my_plan);
           if(pick_success){
-            plan =my_plan;
             //group.execute(my_plan);
+            
             return true;
           }else{
+            
             return false;
           }
         }
@@ -768,7 +774,7 @@ bool GraspNode::pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &
     
    
 }
-bool GraspNode::pick_execute(bool arm,moveit::planning_interface::MoveGroup::Plan plan){
+bool GraspNode::pick_execute(){
     //power();
     sleep(1.0);
     if(arm==LEFT_ARM){
@@ -776,7 +782,7 @@ bool GraspNode::pick_execute(bool arm,moveit::planning_interface::MoveGroup::Pla
       group.setNumPlanningAttempts(20);
       group.setPlanningTime(1.0);
       group.setPlannerId("RRTstarkConfigDefault");
-      bool success = group.execute(plan);
+      bool success = group.execute(my_plan);
       if(success){
         //sleep(3.0);
         //gripper_command="o";
@@ -789,7 +795,7 @@ bool GraspNode::pick_execute(bool arm,moveit::planning_interface::MoveGroup::Pla
       }
     }else{
       moveit::planning_interface::MoveGroup group("right_arm");
-      bool success = group.execute(plan);
+      bool success = group.execute(my_plan);
       if(success){
         sleep(3.0);
         gripper_command="o";
@@ -973,10 +979,10 @@ int main(int argc, char **argv){
   ros::spinOnce();*/
   while(ros::ok()){
     //graspnode.lis.isReceived = false;
-    if(_kbhit()){
-      int ch = _getch();
-      if(ch==27) return 0;
-    } 
+    //printf("exit?y/n\n");
+    
+    //int ch = getchar();
+    //if(ch=='y') return 0;
     ss.clear();
     ss.str("");
     sleep(1.0);   
@@ -994,14 +1000,14 @@ int main(int argc, char **argv){
                  //graspnode.wave();
                  graspnode.reset();
                  graspnode.pick_water();
-                 bool arrive_plan_success = graspnode.arrive_plan(arm,plan);
+                 bool arrive_plan_success = graspnode.arrive_plan();
                  if(arrive_plan_success){
                         sleep(5.0);
-                        bool arrive_execute_success = graspnode.arrive_execute(arm,plan);
+                        bool arrive_execute_success = graspnode.arrive_execute();
                         if(arrive_execute_success){
-                            bool pick_plan_success =graspnode.pick_plan(arm,plan);
+                            bool pick_plan_success =graspnode.pick_plan();
                             if(pick_plan_success){
-                                 bool pick_execute_success = graspnode.pick_execute(arm,plan);
+                                 bool pick_execute_success = graspnode.pick_execute();
                                 if(pick_execute_success){
                                     sleep(5.0);
                                     graspnode.reset();
@@ -1077,7 +1083,7 @@ int main(int argc, char **argv){
         break;
       case ARRIVEPLAN:
           if(true){
-              plan_success = graspnode.arrive_plan(arm,plan);
+              plan_success = graspnode.arrive_plan();
               if(plan_success) {
                 ss << "Plan succeed!";
                 //state = 3;
@@ -1091,7 +1097,7 @@ int main(int argc, char **argv){
           }
           break;
       case ARRIVEEXECUTE:
-          execute_success = graspnode.arrive_execute(arm,plan);
+          execute_success = graspnode.arrive_execute();
           if(execute_success) {
             ss << "Execute succeed!";
           }
@@ -1103,7 +1109,7 @@ int main(int argc, char **argv){
 	  plis.mode = 0;
         break;
    case PICKPLAN:
-          plan_success = graspnode.pick_plan(arm,plan);
+          plan_success = graspnode.pick_plan();
           if(execute_success) {
             ss << "Plan succeed!";
             //state = 5;
@@ -1116,7 +1122,7 @@ int main(int argc, char **argv){
           plis.mode = 0;
         break;
    case PICKEXECUTE:
-          execute_success = graspnode.pick_execute(arm,plan);
+          execute_success = graspnode.pick_execute();
           if(execute_success) {
             ss << "Execute succeed!";
             state = 1;

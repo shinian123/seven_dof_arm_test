@@ -98,7 +98,6 @@ class GraspNode{
 	int listen_times;
 	geometry_msgs::Pose target_pose1;
 	bool isReceived;
-        bool arm;
 	geometry_msgs::Pose pose_average,pose_water,pose_coke;
 	vector<geometry_msgs::Pose> pose_sample;
 	bool enable_arm;//true---left   false----right
@@ -158,10 +157,10 @@ class GraspNode{
   void init(); 
   bool navigation();
   bool detect();
-  bool arrive_plan();
-  bool arrive_execute();
-  bool pick_plan();
-  bool pick_execute();
+  bool arrive_plan(bool &arm,moveit::planning_interface::MoveGroup::Plan &plan);
+  bool arrive_execute(bool arm,moveit::planning_interface::MoveGroup::Plan plan);
+  bool pick_plan(bool arm,moveit::planning_interface::MoveGroup::Plan &plan);
+  bool pick_execute(bool arm,moveit::planning_interface::MoveGroup::Plan plan);
   //bool execute(double x,double y,double z);
   bool reset();
   bool wave();
