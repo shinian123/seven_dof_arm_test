@@ -66,7 +66,7 @@ class Listener{
   void CallBack(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg); 
   geometry_msgs::Pose average_pose(vector<geometry_msgs::Pose> pose1, int count);
   geometry_msgs::Pose add_pose(geometry_msgs::Pose pose1,geometry_msgs::Pose pose2);
-  Listener():listen_times(3),current_count(0),isReceived(false),max_object_num(2){};
+  Listener():listen_times(3),current_count(0),isReceived(false),max_object_num(1){};
   ~Listener(){};
 };
 class pluginListener
