@@ -572,10 +572,11 @@ bool GraspNode::arrive_plan(bool &arm,moveit::planning_interface::MoveGroup::Pla
        // and visualize it.
      // Note that we are just planning, not asking move_group 
      // to actually move the robot.
-      int plan_times= 20;
+      int plan_times= 10;
       for (int i=0;i<plan_times;i++){
         group.setStartState(*group.getCurrentState());
-        group.setPoseTarget(target_pose2); 
+        group.setPoseTarget(target_pose2);
+        group.setGoalTolerance(0.2); 
         bool success = group.plan(my_plan);
         ifsuccess = success;
         ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
@@ -972,7 +973,10 @@ int main(int argc, char **argv){
   ros::spinOnce();*/
   while(ros::ok()){
     //graspnode.lis.isReceived = false;
-    
+    if(_kbhit()){
+      int ch = _getch();
+      if(ch==27) return 0;
+    } 
     ss.clear();
     ss.str("");
     sleep(1.0);   

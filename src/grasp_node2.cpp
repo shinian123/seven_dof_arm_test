@@ -58,9 +58,9 @@ using namespace std;
 geometry_msgs::Pose target_pose1;
 int current_count=0;
 int listen_times=2;
-vector<geometry_msgs::Pose> pose_sample[10];
+vector<geometry_msgs::Pose> pose_sample[40];
 bool isReceived = false;
-geometry_msgs::Pose pose_ans[10];
+geometry_msgs::Pose pose_ans[40];
 geometry_msgs::Pose pose_final[2];
 int max_object_num = 2;
 bool isAuto = false;
@@ -400,7 +400,7 @@ int main(int argc, char **argv)
   printf("z:\n");
   scanf("%lf",&target_z);*/ 
   ros::Subscriber plugin_command_sub = nh.subscribe("plugin_command",10,plugin_callback); 
-  while(!isAuto);
+  //while(!isAuto);
   detect(target_x,target_y,target_z,coke_x,coke_y,coke_z,nh,start_ork_pub,stop_ork_signal_pub);
   printf("Water pose:\nx:%f\ty:%f\tz:%f\n",target_x,target_y,target_z);
   printf("Coke pose:\nx:%f\ty:%f\tz:%f\n",coke_x,coke_y,coke_z);
@@ -408,7 +408,7 @@ int main(int argc, char **argv)
   printf("Pick water or coke?(w/c)\n");
   char object_to_pick;
   //scanf("%c",&object_to_pick);
-  object_to_pick- 'w';
+  object_to_pick- 's';
   if(object_to_pick=='w'){
 	  moveit::planning_interface::MoveGroup group("left_arm");
 	  group.setNumPlanningAttempts(20);

@@ -57,8 +57,8 @@ class Listener{
   int listen_times;
   int current_count;
   bool isReceived;
-  vector<geometry_msgs::Pose> pose_sample[10];
-  geometry_msgs::Pose pose_ans[10];
+  vector<geometry_msgs::Pose> pose_sample[40];
+  geometry_msgs::Pose pose_ans[40];
   geometry_msgs::Pose pose_final[2];
   int max_object_num ;
   void CallBack(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg); 
