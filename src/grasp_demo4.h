@@ -23,35 +23,6 @@
 #include <geometry_msgs/PoseStamped.h>
 
 
-#define middle_state_count 1
-#define LEFT_ARM  true
-#define RIGHT_ARM false 
-#define pi 3.141592653
-#define AUTO_MODE 1
-#define DETECT_MODE 2
-#define NAVIGATION_MODE 3
-#define EXECUTE_MODE 4
-const char AUTO = 1;
-const char DETECT = 2;
-const char NAVIGATION1 = 3;
-const char ARRIVEPLAN = 4;
-const char ARRIVEEXECUTE = 5;
-const char PICKPLAN = 6;
-const char PICKEXECUTE = 7;
-const char PLACEPLAN = 8;
-const char PLACEEXECUTE = 9;
-const char WATER = 10;
-const char RESET = 11;
-const char POWER = 12;
-const char WAVE = 13;
-const char COKE = 14;
-const char CLEARSCENE = 15;
-
-const std::string laser_topic = "scan";
-const float MIN_TOLERANT_RANGE = 0.2f;
-const float MOVE_STEP_PROP = 0.5f;
-const float MIN_MOVE_STEP = MIN_TOLERANT_RANGE * 0.2;
-const float SLEEP_INTERVAL = 0.3f;
 using namespace std;
 
 
@@ -61,7 +32,7 @@ class GraspNode{
 	int listen_times;
 	geometry_msgs::Pose target_pose1;
 	bool isReceived;
-    bool arm;
+  bool arm;
 	geometry_msgs::Pose pose_average,pose_water,pose_coke;
 	bool enable_arm;//true---left   false----right
 

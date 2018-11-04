@@ -35,8 +35,7 @@
 /* Author: Sachin Chitta */
 
 #include "grasp_demo4.h"
-GraspNode::GraspNode(const ros::NodeHandle &nh):
-current_count(0),listen_times(3),isReceived(false),min_object_num(2),enable_arm(true),nh_(nh),gripper_command("a"),spinner(1),arm_name(""),hit(true), move_step(0.0f)
+GraspNode::GraspNode(const ros::NodeHandle &nh):spinner(1)
 {
    spinner.start();
 
@@ -51,6 +50,16 @@ current_count(0),listen_times(3),isReceived(false),min_object_num(2),enable_arm(
   plugin_command_sub = nh_.subscribe("plugin_command",1000,&GraspNode::plugin_callback,this);
   sub =nh_.subscribe("recognized_object_array", 1000, &GraspNode::CallBack,this);
   laser_sub = nh_.subscribe("scan", 1000, &GraspNode::CallBack_laserscan,this);
+
+  nh_.param("current_count",current_count,0);
+  nh_.param("listen_times",listen_times,3);
+  nh_.param("isReceived",isReceived,false);
+  nh_.param("min_object_num",min_object_num,2);
+  nh_.param("enable_arm",enable_arm,true);
+  nh_.param("gripper_command",gripper_command,std::string("a"));
+  nh_.param("arm_name",arm_name,std::string(""));
+  nh_.param("hit",hit,true);
+  nh_.param("move_step",move_step,0.0f);
 
   pub_gripper(&left_gripper_signal_pub,gripper_command);
 	
@@ -178,6 +187,10 @@ void GraspNode::CallBack_laserscan(const sensor_msgs::LaserScan &msg){
    if(hit)
       return ;
    ROS_INFO("LASERSCAN_RUN");
+   float MIN_TOLERANT_RANGE = 0.2f;
+   float MOVE_STEP_PROP = 0.5f;
+   float MIN_MOVE_STEP = MIN_TOLERANT_RANGE * 0.2;
+   float SLEEP_INTERVAL = 0.3f;
    float minrange = 1e10, maxrange = -1e10;
    int i = 0;
    for(float t = msg.angle_min ; t < msg.angle_max ; t += msg.angle_increment)
@@ -370,10 +383,14 @@ void GraspNode::pub_gripper(ros::Publisher *pub, std::string str){
 }
 
 void GraspNode::pick_water(){
+    int WATER;
+    nh_.param("WATER",WATER,1);
     whichobject = WATER;
     ROS_INFO("Pick the water bottle!");
 }
 void GraspNode::pick_coke(){
+    int COKE;
+    nh_.param("COKE",COKE,2);
     whichobject = COKE;
     ROS_INFO("Pick the coke!");
 }
@@ -586,7 +603,7 @@ bool GraspNode::navigation(){
     if(hit)
       break;
     ros::spinOnce();
-    sleep(SLEEP_INTERVAL);
+    sleep(0.3f);
     
   }
   ROS_INFO("Navigation Finished!");
@@ -603,6 +620,8 @@ bool GraspNode::arrive_plan(){
       group.setPlanningTime(1.0);
       group.setPlannerId("RRTstarkConfigDefault");
       group.setStartState(*group.getCurrentState());
+      int WATER;
+      nh_.param("WATER",WATER,1);
       if(whichobject==WATER){
         pose_average = pose_water;
         target_pose2.position.x=pose_average.position.x;
@@ -645,8 +664,8 @@ bool GraspNode::arrive_plan(){
         ifsuccess = success;
         ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
         if(success){
-          enable_arm = LEFT_ARM;
-          arm = LEFT_ARM;
+          enable_arm = true;
+          arm = true;
           break;
          }
        }
@@ -656,7 +675,7 @@ bool GraspNode::arrive_plan(){
 }
 bool GraspNode::arrive_execute(){
 
-  if(arm == LEFT_ARM){
+  if(arm == true){
     moveit::planning_interface::MoveGroup group("left_arm");
     group.setNumPlanningAttempts(20);
     group.setPlannerId("RRTstarkConfigDefault");
@@ -777,7 +796,7 @@ bool GraspNode::pick_plan(){
     object_ids.push_back("cylinder");
     planning_scene_interface.removeCollisionObjects(object_ids);
     
-    if(arm==LEFT_ARM){
+    if(arm==true){
       moveit::planning_interface::MoveGroup group("left_arm");
       group.setNumPlanningAttempts(20);
       group.setPlanningTime(1.0);
@@ -803,8 +822,8 @@ bool GraspNode::pick_plan(){
       bool pick_success = group.plan(my_plan);
       if(pick_success){
         //group.execute(my_plan);
-        enable_arm = LEFT_ARM;
-        arm = LEFT_ARM;
+        enable_arm = true;
+        arm = true;
         return true;
         }else{
         
@@ -834,8 +853,8 @@ bool GraspNode::pick_plan(){
           bool pick_success = group.plan(my_plan);
           if(pick_success){
             //group.execute(my_plan);
-            enable_arm = RIGHT_ARM;
-            arm = RIGHT_ARM;
+            enable_arm = false;
+            arm = false;
             return true;
           }else{
             
@@ -849,7 +868,7 @@ bool GraspNode::pick_plan(){
 bool GraspNode::pick_execute(){
     //power();
     sleep(1.0);
-    if(arm==LEFT_ARM){
+    if(arm==true){
       moveit::planning_interface::MoveGroup group("left_arm");
       group.setNumPlanningAttempts(20);
       group.setPlanningTime(1.0);
@@ -959,7 +978,7 @@ bool GraspNode::reset(){
 	sleep(1.0);
   
 	vector<double> group_variable_values;
-	if(enable_arm==LEFT_ARM){
+	if(enable_arm==true){
 		moveit::planning_interface::MoveGroup group("left_arm");
               group.detachObject("botttle");
               group.setNumPlanningAttempts(20);
