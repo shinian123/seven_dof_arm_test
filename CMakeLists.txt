@@ -147,6 +147,37 @@ add_dependencies(grasp_demo seven_dof_arm_test_generate_messages_cpp)
 target_link_libraries(grasp_demo
    ${catkin_LIBRARIES}
  )
+add_executable(grasp_demo2 src/grasp_demo2.cpp)
+
+## Add cmake target dependencies of the executable/library
+## as an example, message headers may need to be generated before nodes
+add_dependencies(grasp_demo2 seven_dof_arm_test_generate_messages_cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(grasp_demo2
+   ${catkin_LIBRARIES}
+ )
+
+add_executable(grasp_speech_demo src/grasp_demo3.cpp)
+
+## Add cmake target dependencies of the executable/library
+## as an example, message headers may need to be generated before nodes
+add_dependencies(grasp_speech_demo seven_dof_arm_test_generate_messages_cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(grasp_speech_demo
+   ${catkin_LIBRARIES}
+ )
+dd_executable(grasp_demo4 src/grasp_demo4.cpp)
+
+## Add cmake target dependencies of the executable/library
+## as an example, message headers may need to be generated before nodes
+add_dependencies(grasp_demo4 seven_dof_arm_test_generate_messages_cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(grasp_demo4
+   ${catkin_LIBRARIES}
+ )
 
 ## Declare a cpp executable
 add_executable(grasp_node src/test_custom_coord.cpp)
@@ -159,7 +190,16 @@ add_dependencies(grasp_node seven_dof_arm_test_generate_messages_cpp)
 target_link_libraries(grasp_node
    ${catkin_LIBRARIES}
  )
+add_executable(grasp_node2 src/grasp_node2.cpp)
 
+## Add cmake target dependencies of the executable/library
+## as an example, message headers may need to be generated before nodes
+add_dependencies(grasp_node2 seven_dof_arm_test_generate_messages_cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(grasp_node2
+   ${catkin_LIBRARIES}
+ )
 ## Declare a cpp executable
 add_executable(navigation_goal_node src/navigation_goal.cpp)
 

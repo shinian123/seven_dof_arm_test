@@ -670,6 +670,7 @@ bool GraspNode::arrive_execute(){
       for(int i=0;i<10;i++){
       group.setStartState(*group.getCurrentState());
       group.setPoseTarget(target_pose2);
+      group.setGoalTolerance(0.08);
       success = group.plan(my_plan);
       if(success){
          bool ex = group.execute(my_plan);

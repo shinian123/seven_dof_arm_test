@@ -287,7 +287,7 @@ void GraspNode::init(){
   laser_sub = nh.subscribe("scan", 1000, &laserListener::CallBack_laserscan,&laserlis);
 
   
-  pose_init_zero(&pose_average);
+  //pose_init_zero(&pose_average);
   //power();
   /*This sleep is ONLY to allow Rviz to come up */
   sleep(2.0);
