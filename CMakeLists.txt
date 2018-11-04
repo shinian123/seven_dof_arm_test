@@ -168,7 +168,7 @@ add_dependencies(grasp_speech_demo seven_dof_arm_test_generate_messages_cpp)
 target_link_libraries(grasp_speech_demo
    ${catkin_LIBRARIES}
  )
-dd_executable(grasp_demo4 src/grasp_demo4.cpp)
+add_executable(grasp_demo4 src/grasp_demo4.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
