@@ -28,17 +28,32 @@ using namespace std;
 
 class GraspNode{
    public:
+	int current_count;
+	int listen_times;
+	geometry_msgs::Pose target_pose1;
+	bool isReceived;
+  bool arm;
+	geometry_msgs::Pose pose_average,pose_water,pose_coke;
+	bool enable_arm;//true---left   false----right
 
-
-    vector<geometry_msgs::Pose> pose_valid;
-	
-	//bool enable_arm;//true---left   false----right
+	void decide_target_pose(geometry_msgs::Pose *target_pose,double pose_x,double pose_y,double pose_z,double orientation_x,double orientation_y,double orientation_z,double orientation_w);
+	geometry_msgs::Pose add_pose(geometry_msgs::Pose pose1,geometry_msgs::Pose pose2);
+  geometry_msgs::Pose average_pose(vector<geometry_msgs::Pose> pose1, int count);
 	
 	void SubCallBack(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg);
+	vector<geometry_msgs::Pose> pose_sample[40];
+	geometry_msgs::Pose pose_ans[40];
+	geometry_msgs::Pose pose_final[2];
+	int min_object_num ;
 	void CallBack(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg);
 	void pub_gripper(ros::Publisher *pub, std::string str);
-	void CallBack_laserscan(const sensor_msgs::LaserScan &msg);
+	char whichobject;
+	bool hit;
+    float move_step;
+    void CallBack_laserscan(const sensor_msgs::LaserScan &msg);
     void plugin_callback(const std_msgs::String::ConstPtr& msg);
+  std::string arm_name;
+  std::string gripper_command;
   ros::NodeHandle nh_;  
   ros::AsyncSpinner spinner;
   ros::Subscriber sub;
@@ -62,8 +77,9 @@ class GraspNode{
 	ros::Publisher display_publisher;
 	moveit_msgs::DisplayTrajectory display_trajectory;
 	moveit::planning_interface::MoveGroup::Plan my_plan;
+	std::vector<moveit_msgs::CollisionObject> collision_objects;
 	
-	
+	geometry_msgs::Pose target_pose2,target_pose_temp;
 
   GraspNode( const ros::NodeHandle &nh);
   void power(); 

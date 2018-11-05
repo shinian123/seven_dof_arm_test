@@ -1,3 +1,5 @@
 <launch>
-	<node name = "grasp_demo" pkg="seven_dof_arm_test" type="grasp_demo4" output="screen"/>
+    <node name = "grasp_demo" pkg="seven_dof_arm_test" type="grasp_demo4" output="screen">
+      <rosparam command="load" file="$(find seven_dof_arm_test)/params/params.yaml"/>
+    </node>
 </launch>

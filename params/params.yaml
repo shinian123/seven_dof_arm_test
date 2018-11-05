@@ -1,0 +1,10 @@
+current_count: 0
+listen_times: 3
+isReceived: false
+min_object_num: 2
+hit: false
+move_step: 0.0
+object: 1
+arm: true
+enable_arm: true
+

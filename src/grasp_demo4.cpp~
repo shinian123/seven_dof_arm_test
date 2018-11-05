@@ -51,29 +51,59 @@ GraspNode::GraspNode(const ros::NodeHandle &nh):spinner(1)
   sub =nh_.subscribe("recognized_object_array", 1000, &GraspNode::CallBack,this);
   laser_sub = nh_.subscribe("scan", 1000, &GraspNode::CallBack_laserscan,this);
 
+  nh_.param("current_count",current_count,0);
+  nh_.param("listen_times",listen_times,3);
+  nh_.param("isReceived",isReceived,false);
+  nh_.param("min_object_num",min_object_num,2);
+  nh_.param("enable_arm",enable_arm,true);
+  nh_.param("gripper_command",gripper_command,std::string("a"));
+  nh_.param("arm_name",arm_name,std::string(""));
+  nh_.param("hit",hit,true);
+  nh_.param("move_step",move_step,0.0f);
 
-  pub_gripper(&right_gripper_signal_pub,"a");
+  pub_gripper(&left_gripper_signal_pub,gripper_command);
 	
   sleep(3.0);
 
-  pub_gripper(&left_gripper_signal_pub,"a");
+  pub_gripper(&right_gripper_signal_pub,gripper_command);
 	
   sleep(3.0);
   
   ros::spinOnce();
   ROS_INFO("Init suceed!");
 }
+geometry_msgs::Pose GraspNode::add_pose(geometry_msgs::Pose pose1,geometry_msgs::Pose pose2){
 
+  geometry_msgs::Pose pose_add;
+  pose_add.position.x = pose1.position.x + pose2.position.x;
+  pose_add.position.y = pose1.position.y + pose2.position.y;
+  pose_add.position.z = pose1.position.z + pose2.position.z;
+  pose_add.orientation.x = pose1.orientation.x + pose2.orientation.x;
+  pose_add.orientation.y = pose1.orientation.y + pose2.orientation.y;
+  pose_add.orientation.z = pose1.orientation.z + pose2.orientation.z;
+  pose_add.orientation.w = pose1.orientation.w + pose2.orientation.w;
+
+  return pose_add;
+}
+geometry_msgs::Pose GraspNode::average_pose(vector<geometry_msgs::Pose> pose1, int count){
+
+  geometry_msgs::Pose pose_add,pose_ans;
+  for(int i=1;i<count;i++){
+    pose_add=add_pose(pose_add,pose1[i]);
+  }
+  pose_ans.position.x = pose_add.position.x / (count-1);
+  pose_ans.position.y = pose_add.position.y / (count-1);
+  pose_ans.position.z = pose_add.position.z / (count-1);
+  pose_ans.orientation.x = pose_ans.orientation.x / (count-1);
+  pose_ans.orientation.y = pose_ans.orientation.y / (count-1);
+  pose_ans.orientation.z = pose_ans.orientation.z / (count-1);
+  pose_ans.orientation.w = pose_ans.orientation.w / (count-1);
+
+  return pose_ans;
+}
 
 void GraspNode::CallBack(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg){
-   //vector<geometry_msgs::Pose> pose_valid;  
-   //printf("pose_valid_max_size:%d",pose_valid.max_size());
-   int current_count,listen_times,min_object_num;
-   bool isReceived;
-   nh_.param("/grasp_demo/current_count",current_count,0);
-   nh_.param("/grasp_demo/listen_times",listen_times,3);
-   nh_.param("/grasp_demo/isReceived",isReceived,false);
-   nh_.param("/grasp_demo/min_object_num",min_object_num,2);
+   vector<geometry_msgs::Pose> pose_valid;  
    if(&(msg->objects[0])!=NULL) {
       current_count++;
 
@@ -113,31 +143,38 @@ void GraspNode::CallBack(const object_recognition_msgs::RecognizedObjectArray::C
 
       if(target_pose1.position.x<1.0&&target_pose1.position.x>0.7&&target_pose1.position.y>-0.28&&target_pose1.position.y<0.28){
         //pose_samp;
-          pose_valid.push_back(target_pose1);
-          //printf("pose_valid_size:%d",pose_valid.size());
+          pose_valid.push_back(pose_ans[i]);
         }
- 
+   }
       }
-     }
       else{
   
         //printf("pose:\nx:%f\ty:%f\tz:%f\n",target_pose1.position.x,target_pose1.position.y,target_pose1.position.z);
         //printf("orientation:\nx:%f\ty:%f\tz:%f\tw:%f\n",target_pose1.orientation.x,target_pose1.orientation.y,target_pose1.orientation.z,target_pose1.orientation.w); 
        
-       
+       int min_y,max_y;
+       min_y = pose_valid[0].position.y;
+       max_y = pose_valid[0].position.y;
+       pose_final[0] = pose_valid[0];
+       pose_final[1] = pose_valid[0];//1--coke 2--shanquan
+       if(pose_valid.size()>1){
+        for(int i=0;i<pose_valid.size();i++){
+          if(pose_valid[i].position.y<min_y){
+             pose_final[1]= pose_valid[i];
+           }
+          if(pose_valid[i].position.y>max_y){
+             pose_final[0]= pose_valid[i];
+           }
+        }
+       }
+       printf("Water:\npose:\nx:%f\ty:%f\tz:%f\n", pose_final[0].position.x,pose_final[0].position.y,pose_final[0].position.z);
+       printf("Coke:\npose:\nx:%f\ty:%f\tz:%f\n", pose_final[1].position.x,pose_final[1].position.y,pose_final[1].position.z);
        isReceived = true;
        }
       }
-      nh_.setParam("/grasp_demo/current_count",current_count);
-      nh_.setParam("/grasp_demo/min_object_num",min_object_num);
-      nh_.setParam("/grasp_demo/isReceived",isReceived);
 }
 
 void GraspNode::CallBack_laserscan(const sensor_msgs::LaserScan &msg){
-   bool hit;
-   float move_step;
-   nh_.param("/grasp_demo/hit",hit,false);
-   nh_.param("/grasp_demo/move_step",move_step,0.0f);
    if(hit)
       return ;
    ROS_INFO("LASERSCAN_RUN");
@@ -170,8 +207,6 @@ void GraspNode::CallBack_laserscan(const sensor_msgs::LaserScan &msg){
      m.linear.x = move_step;
      navigation_pub.publish(m);
    }
-   nh_.setParam("/grasp_demo/hit",hit);
-   nh_.setParam("/grasp_demo/move_step",move_step);
 
 }
 
@@ -339,63 +374,33 @@ void GraspNode::pub_gripper(ros::Publisher *pub, std::string str){
 }
 
 void GraspNode::pick_water(){
-    nh_.setParam("/grasp_demo/object",1);
+    int WATER;
+    nh_.param("WATER",WATER,1);
+    whichobject = WATER;
     ROS_INFO("Pick the water bottle!");
 }
 void GraspNode::pick_coke(){
-    nh_.setParam("/grasp_demo/object",2);
+    int COKE;
+    nh_.param("COKE",COKE,2);
+    whichobject = COKE;
     ROS_INFO("Pick the coke!");
 }
 bool GraspNode::detect(){
-    bool isReceived=false;
-    geometry_msgs::Pose pose_water,pose_coke;
     std_msgs::String msg;
     std::stringstream ss;
     ss<<"Start object recognition";
     msg.data=ss.str();
     start_ork_pub.publish(msg);
-    while(true){
-      nh_.param("/grasp_demo/isReceived",isReceived,false);
-      sleep(2.0);
-      printf("detect_isReceived:%d",isReceived);
-      if(isReceived) break;
-    }
-    
+    while(!isReceived);
     if(isReceived){
-       int min_y,max_y;
-       printf("pose_valid_size:%d",pose_valid.size());
-       if(pose_valid.empty()){
-	  ROS_ERROR("Recognition failed!");
-          return false;
-       }
-       min_y = pose_valid[0].position.y;
-       max_y = pose_valid[0].position.y;
-       pose_water = pose_valid[0];
-       pose_coke = pose_valid[0];//1--coke 0--shanquan
-       if(pose_valid.size()>1){
-        for(int i=0;i<pose_valid.size();i++){
-          if(pose_valid[i].position.y<min_y){
-             pose_coke= pose_valid[i];
-           }
-          if(pose_valid[i].position.y>max_y){
-             pose_water= pose_valid[i];
-           }
-        }
-       }
-
-      pose_water.position.z=0.37;
-      pose_water.orientation.w =1.0;
-
-      pose_coke.position.z=0.37;
-      pose_coke.orientation.w = 1.0;
-      printf("Water:\npose:\nx:%f\ty:%f\tz:%f\n", pose_water.position.x,pose_water.position.y,pose_water.position.z);
-      printf("Coke:\npose:\nx:%f\ty:%f\tz:%f\n", pose_water.position.x,pose_water.position.y,pose_water.position.z);
-      nh_.setParam("/grasp_demo/water_x",pose_water.position.x);
-      nh_.setParam("/grasp_demo/water_y",pose_water.position.y);
-      nh_.setParam("/grasp_demo/water_z",pose_water.position.z);
-      nh_.setParam("/grasp_demo/coke_x",pose_coke.position.x);
-      nh_.setParam("/grasp_demo/coke_y",pose_coke.position.y);
-      nh_.setParam("/grasp_demo/coke_z",pose_coke.position.z);
+    pose_water.position.x=pose_final[0].position.x;
+    pose_water.position.y=pose_final[0].position.y;
+    pose_water.position.z=0.37;
+    pose_water.orientation.w =1.0;
+    pose_coke.position.x=pose_final[1].position.x;
+    pose_coke.position.y=pose_final[1].position.y;
+    pose_coke.position.z=0.37;
+    pose_coke.orientation.w = 1.0;
 
     
     ss.str("");
@@ -408,7 +413,6 @@ bool GraspNode::detect(){
     sleep(1.0);
 
      moveit_msgs::CollisionObject cylinder,box1,box2,cyl2,wall;
-     std::vector<moveit_msgs::CollisionObject> collision_objects;
 
       cylinder.id = "cylinder";
 
@@ -532,7 +536,6 @@ bool GraspNode::detect(){
       // Now when we plan a trajectory it will avoid the obstacle
       //group.setStartState(*group.getCurrentState());
       isReceived = false;
-      nh_.setParam("/grasp_demo/isReceived",isReceived);
       return true;
     }else
       return false; 
@@ -584,11 +587,10 @@ bool GraspNode::navigation(){
       /*sleep(2.0);
       ros::spinOnce();
       sleep(10.0);*/
-  bool hit = false;
+  hit = false;
   ROS_INFO("Navigation Started!");
   while(ros::ok())
   {
-  	nh_.getParam("/grasp_demo/hit",hit);
     if(hit)
       break;
     ros::spinOnce();
@@ -603,34 +605,28 @@ bool GraspNode::navigation(){
 }
 
 bool GraspNode::arrive_plan(){
-      geometry_msgs::Pose target_pose2;
       moveit::planning_interface::MoveGroup group("left_arm");
       bool ifsuccess;
       group.setNumPlanningAttempts(20);
       group.setPlanningTime(1.0);
       group.setPlannerId("RRTstarkConfigDefault");
       group.setStartState(*group.getCurrentState());
-      int whichobject;
-      float water_x,water_y,water_z,coke_x,coke_y,coke_z;
-      nh_.getParam("/grasp_demo/object",whichobject);
-      nh_.getParam("/grasp_demo/water_x",water_x);
-      nh_.getParam("/grasp_demo/water_y",water_y);
-      nh_.getParam("/grasp_demo/water_z",water_z);
-      nh_.getParam("/grasp_demo/coke_x",coke_x);
-      nh_.getParam("/grasp_demo/coke_y",coke_y);
-      nh_.getParam("/grasp_demo/coke_z",coke_z);
-      if(whichobject==1){
-        target_pose2.position.x=water_x;
-        target_pose2.position.z=water_z+0.05;
-        target_pose2.position.y=water_y+0.18;
+      int WATER;
+      nh_.param("WATER",WATER,1);
+      if(whichobject==WATER){
+        pose_average = pose_water;
+        target_pose2.position.x=pose_average.position.x;
+        target_pose2.position.z=pose_average.position.z+0.05;
+        target_pose2.position.y=pose_average.position.y+0.18;
         target_pose2.orientation.x=1;
         target_pose2.orientation.y=0;
         target_pose2.orientation.z=0;
         target_pose2.orientation.w=0;
       }else{
-        target_pose2.position.x=coke_x;
-        target_pose2.position.z=coke_z+0.2;
-        target_pose2.position.y=coke_y;
+        pose_average = pose_coke;
+        target_pose2.position.x=pose_average.position.x;
+        target_pose2.position.z=pose_average.position.z+0.2;
+        target_pose2.position.y=pose_average.position.y;
         target_pose2.orientation.x=0;
         target_pose2.orientation.y=-sqrt(2)/2;
         target_pose2.orientation.z=sqrt(2)/2;
@@ -659,10 +655,8 @@ bool GraspNode::arrive_plan(){
         ifsuccess = success;
         ROS_INFO("Visualizing plan 1 (pose goal) %s",success?"SUCCEED":"FAILED"); 
         if(success){
-          bool enable_arm = true;
-          bool arm = true;
-          nh_.setParam("/grasp_demo/enable_arm",enable_arm);
-          nh_.setParam("/grasp_demo/arm",arm);
+          enable_arm = true;
+          arm = true;
           break;
          }
        }
@@ -671,37 +665,8 @@ bool GraspNode::arrive_plan(){
       
 }
 bool GraspNode::arrive_execute(){
-  bool arm,enable_arm;
-  nh_.getParam("/grasp_demo/arm",arm);
-  nh_.getParam("/grasp_demo/enable_arm",enable_arm);
+
   if(arm == true){
-      int whichobject;
-      float water_x,water_y,water_z,coke_x,coke_y,coke_z;
-      geometry_msgs::Pose target_pose2;
-      nh_.getParam("/grasp_demo/object",whichobject);
-      nh_.getParam("/grasp_demo/water_x",water_x);
-      nh_.getParam("/grasp_demo/water_y",water_y);
-      nh_.getParam("/grasp_demo/water_z",water_z);
-      nh_.getParam("/grasp_demo/coke_x",coke_x);
-      nh_.getParam("/grasp_demo/coke_y",coke_y);
-      nh_.getParam("/grasp_demo/coke_z",coke_z);
-      if(whichobject==1){
-        target_pose2.position.x=water_x;
-        target_pose2.position.z=water_z+0.05;
-        target_pose2.position.y=water_y+0.18;
-        target_pose2.orientation.x=1;
-        target_pose2.orientation.y=0;
-        target_pose2.orientation.z=0;
-        target_pose2.orientation.w=0;
-      }else{
-        target_pose2.position.x=coke_x;
-        target_pose2.position.z=coke_z+0.2;
-        target_pose2.position.y=coke_y;
-        target_pose2.orientation.x=0;
-        target_pose2.orientation.y=-sqrt(2)/2;
-        target_pose2.orientation.z=sqrt(2)/2;
-        target_pose2.orientation.w=0;
-      }
     moveit::planning_interface::MoveGroup group("left_arm");
     group.setNumPlanningAttempts(20);
     group.setPlannerId("RRTstarkConfigDefault");
@@ -732,7 +697,8 @@ bool GraspNode::arrive_execute(){
     //ROS_INFO("Press ENTER to grasp.");
     //getchar();
 
-      pub_gripper(&left_gripper_signal_pub,"o"); 
+      gripper_command=75;
+      pub_gripper(&left_gripper_signal_pub,gripper_command); 
       sleep(2.0);
 
       target_pose2.position.z += 0.18;
@@ -746,26 +712,11 @@ bool GraspNode::arrive_execute(){
       /* The id of the object */
       attached_object.id = "bottle";
 
-      int whichobject;
-      float water_x,water_y,water_z,coke_x,coke_y,coke_z;
-      nh_.getParam("/grasp_demo/object",whichobject);
-      nh_.getParam("/grasp_demo/water_x",water_x);
-      nh_.getParam("/grasp_demo/water_y",water_y);
-      nh_.getParam("/grasp_demo/water_z",water_z);
-      nh_.getParam("/grasp_demo/coke_x",coke_x);
-      nh_.getParam("/grasp_demo/coke_y",coke_y);
-      nh_.getParam("/grasp_demo/coke_z",coke_z);
-
       /* A default pose */
       geometry_msgs::Pose pose;
       pose.orientation.w = 1.0;
-      if(whichobject==1){
-      	pose.position.x = water_x;
-      	pose.position.y = water_y;
-      }else{
-      	pose.position.x = coke_x;
-      	pose.position.y = coke_y;
-      }
+      pose.position.x = pose_average.position.x;
+      pose.position.y = pose_average.position.y;
       pose.position.z =0.325;
 
       /* Define a box to be attached */
@@ -828,15 +779,12 @@ bool GraspNode::arrive_execute(){
 
 bool GraspNode::pick_plan(){
     sleep(2.0);
-    bool arm,enable_arm;
-    nh_.getParam("/grasp_demo/arm",arm);
-    nh_.getParam("/grasp_demo/enable_arm",enable_arm);
+    
    
     // printf("Have we grasped the object?(y/n)");
     // scanf("%s",&haveGrasp);
     std::vector<std::string> object_ids;
     object_ids.push_back("cylinder");
-    moveit::planning_interface::PlanningSceneInterface planning_scene_interface; 
     planning_scene_interface.removeCollisionObjects(object_ids);
     
     if(arm==true){
@@ -911,9 +859,6 @@ bool GraspNode::pick_plan(){
 bool GraspNode::pick_execute(){
     //power();
     sleep(1.0);
-    bool arm,enable_arm;
-    nh_.getParam("/grasp_demo/arm",arm);
-    nh_.getParam("/grasp_demo/enable_arm",enable_arm);
     if(arm==true){
       moveit::planning_interface::MoveGroup group("left_arm");
       group.setNumPlanningAttempts(20);
@@ -922,7 +867,8 @@ bool GraspNode::pick_execute(){
       bool success = group.execute(my_plan);
       if(success){
         //sleep(3.0);
-        pub_gripper(&left_gripper_signal_pub,"o");
+        gripper_command="o";
+        pub_gripper(&left_gripper_signal_pub,gripper_command);
         ros::spinOnce();
         //sleep(3.0);
         return true;
@@ -934,8 +880,8 @@ bool GraspNode::pick_execute(){
       bool success = group.execute(my_plan);
       if(success){
         sleep(3.0);
-
-        pub_gripper(&right_gripper_signal_pub,"o");
+        gripper_command="o";
+        pub_gripper(&right_gripper_signal_pub,gripper_command);
         ros::spinOnce();
         //sleep(3.0);
         return true;
@@ -982,8 +928,8 @@ bool GraspNode::wave(){
 		group_variable_values.clear();
 		//group_variable_values.push_back(1.23378980);
 		//group_variable_values.push_back(-2.73414451);
-    group_variable_values.push_back(0.903638);
-    group_variable_values.push_back(-2.22677);
+                group_variable_values.push_back(0.903638);
+                group_variable_values.push_back(-2.22677);
 		group_variable_values.push_back(-0.4581005);
 		//group_variable_values.push_back(-2.5075467);
 		//group_variable_values.push_back(-1.527659);
@@ -1021,9 +967,6 @@ bool GraspNode::reset(){
 	//reset pose 
 	//power();
 	sleep(1.0);
-	bool arm,enable_arm;
-    nh_.getParam("/grasp_demo/arm",arm);
-    nh_.getParam("/grasp_demo/enable_arm",enable_arm);
   
 	vector<double> group_variable_values;
 	if(enable_arm==true){
