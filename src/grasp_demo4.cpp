@@ -63,7 +63,9 @@ GraspNode::GraspNode(const ros::NodeHandle &nh):spinner(1)
   ros::spinOnce();
   ROS_INFO("Init suceed!");
 }
-
+GraspNode::~GraspNode(){
+  pose_valid.clear();
+}
 
 void GraspNode::CallBack(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg){
    //vector<geometry_msgs::Pose> pose_valid;  
@@ -382,7 +384,7 @@ bool GraspNode::detect(){
            }
         }
        }
-
+      pose_valid.clear();
       pose_water.position.z=0.37;
       pose_water.orientation.w =1.0;
 

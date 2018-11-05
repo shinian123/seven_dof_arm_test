@@ -56,16 +56,17 @@ class GraspNode{
 
 	// We will use the :planning_scene_interface:`PlanningSceneInterface
 	// class to deal directly with the world.
-	moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
+	//moveit::planning_interface::PlanningSceneInterface planning_scene_interface;  
 
 	// (Optional) Create a publisher for visualizing plans in Rviz.
 	ros::Publisher display_publisher;
-	moveit_msgs::DisplayTrajectory display_trajectory;
+	//moveit_msgs::DisplayTrajectory display_trajectory;
 	moveit::planning_interface::MoveGroup::Plan my_plan;
 	
 	
 
   GraspNode( const ros::NodeHandle &nh);
+  ~GraspNode();
   void power(); 
   void init(); 
   bool navigation();
