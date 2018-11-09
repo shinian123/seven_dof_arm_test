@@ -30,17 +30,13 @@ class GraspNode{
    public:
 
 
-    vector<geometry_msgs::Pose> pose_valid;
+    
 	
 	//bool enable_arm;//true---left   false----right
 	
-	void SubCallBack(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg);
-	void CallBack(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg);
-	void pub_gripper(ros::Publisher *pub, std::string str);
-	void CallBack_laserscan(const sensor_msgs::LaserScan &msg);
-    void plugin_callback(const std_msgs::String::ConstPtr& msg);
+	
   ros::NodeHandle nh_;  
-  ros::AsyncSpinner spinner;
+  
   ros::Subscriber sub;
   ros::Subscriber plugin_command_sub;
   ros::Publisher plugin_return_pub;
@@ -61,7 +57,7 @@ class GraspNode{
 	// (Optional) Create a publisher for visualizing plans in Rviz.
 	ros::Publisher display_publisher;
 	//moveit_msgs::DisplayTrajectory display_trajectory;
-	moveit::planning_interface::MoveGroup::Plan my_plan;
+	
 	
 	
 
@@ -71,15 +67,22 @@ class GraspNode{
   void init(); 
   bool navigation();
   bool detect();
-  bool arrive_plan();
-  bool arrive_execute();
-  bool pick_plan();
-  bool pick_execute();
+  moveit::planning_interface::MoveGroup::Plan arrive_plan();
+  bool arrive_execute(moveit::planning_interface::MoveGroup::Plan my_plan);
+  moveit::planning_interface::MoveGroup::Plan pick_plan();
+  bool pick_execute(moveit::planning_interface::MoveGroup::Plan my_plan);
   bool reset();
   bool wave();
   void pick_water();
   void pick_coke();
   void clear_scene();
+
+  void SubCallBack(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg);
+  void CallBack(const object_recognition_msgs::RecognizedObjectArray::ConstPtr& msg);
+  void pub_gripper(ros::Publisher *pub, std::string str);
+  void CallBack_laserscan(const sensor_msgs::LaserScan &msg);
+  void plugin_callback(const std_msgs::String::ConstPtr& msg);
+
   int  main(int argc, char **argv);
  
 };

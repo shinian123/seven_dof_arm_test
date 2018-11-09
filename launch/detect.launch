@@ -1,0 +1,4 @@
+<launch>
+	<node name="detect" pkg="seven_dof_arm_test" type="detect_node" output="screen" />
+	<node name="ork" pkg="object_recognition_core" type="init_detect" output="screen" />
+</launch>
